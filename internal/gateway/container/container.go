@@ -8,6 +8,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
+	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
 	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
@@ -74,11 +76,33 @@ func (c *Container) NewStorages(ctx context.Context) (_ *Storages, err error) {
 	return s, nil
 }
 
+type Repos struct {
+	catalog *catalogrepo.CatalogRepository
+}
+
+func (c *Container) NewRepos() *Repos {
+	return &Repos{
+		catalog: catalogrepo.NewCatalogRepository(c.storages.catalog),
+	}
+}
+
+type Services struct {
+	catalog *catalogsvc.CatalogService
+}
+
+func (c *Container) NewServices() *Services {
+	return &Services{
+		catalog: catalogsvc.NewCatalogService(c.repos.catalog),
+	}
+}
+
 // Container — единственный composition root gateway: здесь собираются БД,
 // репозитории, сервисы, клиенты и транспорт.
 type Container struct {
 	Config   *config.Config
 	storages *Storages
+	repos    *Repos
+	services *Services
 }
 
 func New(ctx context.Context, cfg *config.Config) (*Container, error) {
@@ -89,6 +113,8 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 		return nil, err
 	}
 	c.storages = storages
+	c.repos = c.NewRepos()
+	c.services = c.NewServices()
 
 	return c, nil
 }
