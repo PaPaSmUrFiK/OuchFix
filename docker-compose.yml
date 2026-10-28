@@ -1,0 +1,87 @@
+# Поднять всё: docker compose up -d --build
+# GraphQL: http://localhost:8080/graphql, Postgres снаружи: localhost:5433.
+x-service: &service
+  restart: on-failure
+  environment: &env
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ouchfix
+      POSTGRES_USER: ouchfix
+      POSTGRES_PASSWORD: ouchfix
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ouchfix -d ouchfix"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  iam:
+    <<: *service
+    build: { context: ., args: { SERVICE: iam } }
+    environment:
+      <<: *env
+      IAM_PORT: 8081
+      IAM_POSTGRES_DSN: postgres://ouchfix_iam:ouchfix_iam@postgres:5432/ouchfix?sslmode=disable
+
+  catalog:
+    <<: *service
+    build: { context: ., args: { SERVICE: catalog } }
+    environment:
+      <<: *env
+      CATALOG_PORT: 8082
+      CATALOG_POSTGRES_DSN: postgres://ouchfix_catalog:ouchfix_catalog@postgres:5432/ouchfix?sslmode=disable
+
+  appointment:
+    <<: *service
+    build: { context: ., args: { SERVICE: appointment } }
+    environment:
+      <<: *env
+      APPOINTMENT_PORT: 8083
+      APPOINTMENT_POSTGRES_DSN: postgres://ouchfix_appointment:ouchfix_appointment@postgres:5432/ouchfix?sslmode=disable
+
+  payment:
+    <<: *service
+    build: { context: ., args: { SERVICE: payment } }
+    environment:
+      <<: *env
+      PAYMENT_PORT: 8084
+      PAYMENT_POSTGRES_DSN: postgres://ouchfix_payment:ouchfix_payment@postgres:5432/ouchfix?sslmode=disable
+
+  notification:
+    <<: *service
+    build: { context: ., args: { SERVICE: notification } }
+    environment:
+      <<: *env
+      NOTIFICATION_PORT: 8085
+      NOTIFICATION_POSTGRES_DSN: postgres://ouchfix_notification:ouchfix_notification@postgres:5432/ouchfix?sslmode=disable
+
+  # Gateway без доступа к БД: только адреса сервисов.
+  gateway:
+    build: { context: ., args: { SERVICE: gateway } }
+    restart: on-failure
+    environment:
+      <<: *env
+      GATEWAY_PORT: 8080
+      GATEWAY_TEST_USER_ID: ${GATEWAY_TEST_USER_ID:-5}
+      CATALOG_URL: http://catalog:8082
+      APPOINTMENT_URL: http://appointment:8083
+      PAYMENT_URL: http://payment:8084
+      NOTIFICATION_URL: http://notification:8085
+    ports:
+      - "8080:8080"
+    depends_on: [iam, catalog, appointment, payment, notification]
+
+volumes:
+  pgdata:
