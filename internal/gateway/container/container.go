@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 
 	"github.com/jmoiron/sqlx"
 
@@ -13,6 +14,8 @@ import (
 	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
 	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
+	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/resolver"
 	notificationrepo "github.com/PaPaSmUrFiK/OuchFix/internal/notification/repository/postgres"
 	notificationsvc "github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
 	paymentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/payment/repository/postgres"
@@ -156,6 +159,19 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	c.services = c.NewServices()
 
 	return c, nil
+}
+
+// GraphQLHandler — внешний API gateway. Сервисы передаются резолверам как
+// интерфейсы: в ЛР3 это реализации в том же процессе, в ЛР6 — gRPC-клиенты.
+func (c *Container) GraphQLHandler() http.Handler {
+	return gql.NewHandler(resolver.New(
+		c.services.catalog,
+		c.services.appointment,
+		c.services.payment,
+		c.services.notification,
+		c.Config.Location,
+		c.Config.TestUserID,
+	))
 }
 
 func (c *Container) Close() error {

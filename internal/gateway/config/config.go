@@ -15,6 +15,9 @@ type Config struct {
 	Location *time.Location
 	Server   Server
 	DB       Databases
+	// TestUserID — ВРЕМЕННО до ЛР5 (JWT): от чьего имени выполняются
+	// myAppointments и myNotifications.
+	TestUserID int64
 }
 
 // Databases — у каждого сервиса своя БД. В ЛР3 все сервисы живут внутри
@@ -57,6 +60,13 @@ func Load() (*Config, error) {
 
 	if cfg.DB, err = loadDatabases(); err != nil {
 		return nil, err
+	}
+
+	if cfg.TestUserID, err = pkgconfig.Int64("GATEWAY_TEST_USER_ID", 5); err != nil {
+		return nil, err
+	}
+	if cfg.TestUserID <= 0 {
+		return nil, fmt.Errorf("GATEWAY_TEST_USER_ID must be positive, got %d", cfg.TestUserID)
 	}
 
 	return cfg, nil
