@@ -14,13 +14,14 @@ var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 // Migrate накатывает *.sql из fsys по порядку имён в схему schema. Применённые
 // версии хранятся в <schema>.schema_migrations, каждый файл идёт в своей транзакции.
+// Саму схему и её владельца заранее создаёт администратор (docker/postgres/init.sql):
+// у пользователя сервиса нет прав создавать схемы.
 func Migrate(ctx context.Context, db *sqlx.DB, schema string, fsys fs.FS) error {
 	if !schemaName.MatchString(schema) {
 		return fmt.Errorf("invalid schema name %q", schema)
 	}
 
 	bootstrap := fmt.Sprintf(`
-		CREATE SCHEMA IF NOT EXISTS %[1]s;
 		CREATE TABLE IF NOT EXISTS %[1]s.schema_migrations (
 			version    VARCHAR(255) PRIMARY KEY,
 			applied_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
