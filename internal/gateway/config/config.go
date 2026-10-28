@@ -12,6 +12,17 @@ import (
 type Config struct {
 	LogLevel string
 	Server   Server
+	DB       Databases
+}
+
+// Databases — у каждого сервиса своя БД. В ЛР3 все сервисы живут внутри
+// процесса gateway, но подключения уже раздельные, как будет после ЛР6.
+type Databases struct {
+	IAM          pkgconfig.Postgres
+	Catalog      pkgconfig.Postgres
+	Appointment  pkgconfig.Postgres
+	Payment      pkgconfig.Postgres
+	Notification pkgconfig.Postgres
 }
 
 type Server struct {
@@ -35,7 +46,34 @@ func Load() (*Config, error) {
 	}
 	cfg.Server = server
 
+	if cfg.DB, err = loadDatabases(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+func loadDatabases() (Databases, error) {
+	var (
+		d   Databases
+		err error
+	)
+	if d.IAM, err = pkgconfig.LoadPostgres("IAM"); err != nil {
+		return d, err
+	}
+	if d.Catalog, err = pkgconfig.LoadPostgres("CATALOG"); err != nil {
+		return d, err
+	}
+	if d.Appointment, err = pkgconfig.LoadPostgres("APPOINTMENT"); err != nil {
+		return d, err
+	}
+	if d.Payment, err = pkgconfig.LoadPostgres("PAYMENT"); err != nil {
+		return d, err
+	}
+	if d.Notification, err = pkgconfig.LoadPostgres("NOTIFICATION"); err != nil {
+		return d, err
+	}
+	return d, nil
 }
 
 func loadServer() (Server, error) {
