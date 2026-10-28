@@ -30,15 +30,5 @@ func run() error {
 	ctx, stop := httpserver.SignalContext()
 	defer stop()
 
-	ctr, err := container.New(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("build container: %w", err)
-	}
-	defer func() {
-		if err := ctr.Close(); err != nil {
-			logging.Error("close container failed", "error", err)
-		}
-	}()
-
-	return app.Run(ctx, ctr)
+	return app.Run(ctx, container.New(cfg))
 }

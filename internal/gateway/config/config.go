@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
@@ -11,31 +10,22 @@ import (
 
 type Config struct {
 	LogLevel string
-	// Location — часовой пояс медцентра: в нём считаются границы дня (freeSlots).
+	// Location — часовой пояс медцентра: в нём отдаётся время в ответах.
 	Location *time.Location
-	Server   Server
-	DB       Databases
+	Server   httpserver.Config
+	Services Services
 	// TestUserID — ВРЕМЕННО до ЛР5 (JWT): от чьего имени выполняются
 	// myAppointments и myNotifications.
 	TestUserID int64
 }
 
-// Databases — у каждого сервиса своя БД. В ЛР3 все сервисы живут внутри
-// процесса gateway, но подключения уже раздельные, как будет после ЛР6.
-type Databases struct {
-	IAM          pkgconfig.Postgres
-	Catalog      pkgconfig.Postgres
-	Appointment  pkgconfig.Postgres
-	Payment      pkgconfig.Postgres
-	Notification pkgconfig.Postgres
-}
-
-type Server struct {
-	Port            int
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	IdleTimeout     time.Duration
-	ShutdownTimeout time.Duration
+// Services — адреса внутренних REST API сервисов. Доступа к БД у gateway нет.
+type Services struct {
+	CatalogURL      string
+	AppointmentURL  string
+	PaymentURL      string
+	NotificationURL string
+	Timeout         time.Duration
 }
 
 func Load() (*Config, error) {
@@ -52,13 +42,10 @@ func Load() (*Config, error) {
 	}
 	cfg.Location = location
 
-	server, err := loadServer()
-	if err != nil {
+	if cfg.Server, err = httpserver.LoadConfig("GATEWAY", 8080); err != nil {
 		return nil, err
 	}
-	cfg.Server = server
-
-	if cfg.DB, err = loadDatabases(); err != nil {
+	if cfg.Services, err = loadServices(); err != nil {
 		return nil, err
 	}
 
@@ -72,79 +59,18 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-func loadDatabases() (Databases, error) {
-	var (
-		d   Databases
-		err error
-	)
-	if d.IAM, err = pkgconfig.LoadPostgres("IAM"); err != nil {
-		return d, err
+func loadServices() (Services, error) {
+	s := Services{
+		CatalogURL:      pkgconfig.String("CATALOG_URL", "http://localhost:8082"),
+		AppointmentURL:  pkgconfig.String("APPOINTMENT_URL", "http://localhost:8083"),
+		PaymentURL:      pkgconfig.String("PAYMENT_URL", "http://localhost:8084"),
+		NotificationURL: pkgconfig.String("NOTIFICATION_URL", "http://localhost:8085"),
 	}
-	if d.Catalog, err = pkgconfig.LoadPostgres("CATALOG"); err != nil {
-		return d, err
-	}
-	if d.Appointment, err = pkgconfig.LoadPostgres("APPOINTMENT"); err != nil {
-		return d, err
-	}
-	if d.Payment, err = pkgconfig.LoadPostgres("PAYMENT"); err != nil {
-		return d, err
-	}
-	if d.Notification, err = pkgconfig.LoadPostgres("NOTIFICATION"); err != nil {
-		return d, err
-	}
-	return d, nil
-}
 
-func loadServer() (Server, error) {
-	var (
-		s   Server
-		err error
-	)
-	if s.Port, err = pkgconfig.Int("GATEWAY_PORT", 8080); err != nil {
-		return s, err
-	}
-	if s.ReadTimeout, err = pkgconfig.Duration("GATEWAY_READ_TIMEOUT", 15*time.Second); err != nil {
-		return s, err
-	}
-	if s.WriteTimeout, err = pkgconfig.Duration("GATEWAY_WRITE_TIMEOUT", 30*time.Second); err != nil {
-		return s, err
-	}
-	if s.IdleTimeout, err = pkgconfig.Duration("GATEWAY_IDLE_TIMEOUT", 60*time.Second); err != nil {
-		return s, err
-	}
-	if s.ShutdownTimeout, err = pkgconfig.Duration("GATEWAY_SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
+	var err error
+	if s.Timeout, err = pkgconfig.Duration("GATEWAY_SERVICES_TIMEOUT", 5*time.Second); err != nil {
 		return s, err
 	}
 
-	return s, s.validate()
-}
-
-func (s Server) validate() error {
-	if err := pkgconfig.ValidatePort("GATEWAY_PORT", s.Port); err != nil {
-		return err
-	}
-	for _, t := range []struct {
-		name  string
-		value time.Duration
-	}{
-		{"GATEWAY_READ_TIMEOUT", s.ReadTimeout},
-		{"GATEWAY_WRITE_TIMEOUT", s.WriteTimeout},
-		{"GATEWAY_IDLE_TIMEOUT", s.IdleTimeout},
-		{"GATEWAY_SHUTDOWN_TIMEOUT", s.ShutdownTimeout},
-	} {
-		if err := pkgconfig.ValidatePositiveDuration(t.name, t.value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Config) ServerConfig() httpserver.Config {
-	return httpserver.Config{
-		Addr:            ":" + strconv.Itoa(c.Server.Port),
-		ReadTimeout:     c.Server.ReadTimeout,
-		WriteTimeout:    c.Server.WriteTimeout,
-		IdleTimeout:     c.Server.IdleTimeout,
-		ShutdownTimeout: c.Server.ShutdownTimeout,
-	}
+	return s, pkgconfig.ValidatePositiveDuration("GATEWAY_SERVICES_TIMEOUT", s.Timeout)
 }

@@ -1,183 +1,56 @@
 package container
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"io/fs"
 	"net/http"
 
-	"github.com/jmoiron/sqlx"
-
-	appointmentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/repository/postgres"
-	appointmentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/service"
-	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
-	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/client"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
 	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/resolver"
-	notificationrepo "github.com/PaPaSmUrFiK/OuchFix/internal/notification/repository/postgres"
-	notificationsvc "github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
-	paymentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/payment/repository/postgres"
-	paymentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/payment/service"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
-	appointmentclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/appointment"
-	catalogclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
-	iamclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/iam"
-	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
-	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
+	httpclient "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/client"
 )
 
-type Storages struct {
-	iam          *sqlx.DB
-	catalog      *sqlx.DB
-	appointment  *sqlx.DB
-	payment      *sqlx.DB
-	notification *sqlx.DB
-}
-
-func (s *Storages) all() []*sqlx.DB {
-	return []*sqlx.DB{s.iam, s.catalog, s.appointment, s.payment, s.notification}
-}
-
-func (s *Storages) Close() error {
-	var errs []error
-	for _, db := range s.all() {
-		if db != nil {
-			errs = append(errs, db.Close())
-		}
-	}
-	return errors.Join(errs...)
-}
-
-// NewStorages открывает БД каждого сервиса и накатывает его миграции. При ошибке
-// уже открытые подключения закрываются.
-func (c *Container) NewStorages(ctx context.Context) (_ *Storages, err error) {
-	s := &Storages{}
-	defer func() {
-		if err != nil {
-			if closeErr := s.Close(); closeErr != nil {
-				err = fmt.Errorf("%w (close: %s)", err, closeErr)
-			}
-		}
-	}()
-
-	for _, db := range []struct {
-		target *(*sqlx.DB)
-		schema string
-		cfg    pkgconfig.Postgres
-		files  fs.FS
-	}{
-		{&s.iam, "iam", c.Config.DB.IAM, migrations.IAM},
-		{&s.catalog, "catalog", c.Config.DB.Catalog, migrations.Catalog},
-		{&s.appointment, "appointment", c.Config.DB.Appointment, migrations.Appointment},
-		{&s.payment, "payment", c.Config.DB.Payment, migrations.Payment},
-		{&s.notification, "notification", c.Config.DB.Notification, migrations.Notification},
-	} {
-		conn, err := postgres.New(ctx, db.cfg)
-		if err != nil {
-			return nil, fmt.Errorf("connect %s db: %w", db.schema, err)
-		}
-		*db.target = conn
-
-		if err := postgres.Migrate(ctx, conn, db.schema, db.files); err != nil {
-			return nil, fmt.Errorf("migrate %s: %w", db.schema, err)
-		}
-	}
-
-	return s, nil
-}
-
-type Repos struct {
-	catalog      *catalogrepo.CatalogRepository
-	appointment  *appointmentrepo.AppointmentRepository
-	payment      *paymentrepo.PaymentRepository
-	notification *notificationrepo.NotificationRepository
-}
-
-func (c *Container) NewRepos() *Repos {
-	return &Repos{
-		catalog:      catalogrepo.NewCatalogRepository(c.storages.catalog),
-		appointment:  appointmentrepo.NewAppointmentRepository(c.storages.appointment),
-		payment:      paymentrepo.NewPaymentRepository(c.storages.payment),
-		notification: notificationrepo.NewNotificationRepository(c.storages.notification),
-	}
-}
-
-// Clients — межсервисные клиенты. В ЛР3 это заглушки по proto из ЛР2, в ЛР6
-// здесь же они заменятся на gRPC-реализации, сервисы при этом не меняются.
+// Clients — клиенты gateway к сервисам. Своей БД у gateway нет: данные только
+// через внутренние REST API сервисов (в ЛР6 — gRPC).
 type Clients struct {
-	catalog     catalogclient.Client
-	iam         iamclient.Client
-	appointment appointmentclient.Client
+	catalog      *client.Catalog
+	appointment  *client.Appointment
+	payment      *client.Payment
+	notification *client.Notification
 }
 
 func (c *Container) NewClients() *Clients {
+	s := c.Config.Services
 	return &Clients{
-		catalog:     catalogclient.NewStub(),
-		iam:         iamclient.NewStub(),
-		appointment: appointmentclient.NewStub(),
+		catalog:      client.NewCatalog(httpclient.New(s.CatalogURL, s.Timeout)),
+		appointment:  client.NewAppointment(httpclient.New(s.AppointmentURL, s.Timeout)),
+		payment:      client.NewPayment(httpclient.New(s.PaymentURL, s.Timeout)),
+		notification: client.NewNotification(httpclient.New(s.NotificationURL, s.Timeout)),
 	}
 }
 
-type Services struct {
-	catalog      *catalogsvc.CatalogService
-	appointment  *appointmentsvc.AppointmentService
-	payment      *paymentsvc.PaymentService
-	notification *notificationsvc.NotificationService
-}
-
-func (c *Container) NewServices() *Services {
-	return &Services{
-		catalog:      catalogsvc.NewCatalogService(c.repos.catalog),
-		appointment:  appointmentsvc.NewAppointmentService(c.repos.appointment, c.clients.catalog, c.Config.Location),
-		payment:      paymentsvc.NewPaymentService(c.repos.payment, c.clients.catalog, c.clients.appointment),
-		notification: notificationsvc.NewNotificationService(c.repos.notification, c.clients.iam),
-	}
-}
-
-// Container — единственный composition root gateway: здесь собираются БД,
-// репозитории, сервисы, клиенты и транспорт.
+// Container — composition root gateway: клиенты сервисов и транспорт.
 type Container struct {
-	Config   *config.Config
-	storages *Storages
-	repos    *Repos
-	clients  *Clients
-	services *Services
+	Config  *config.Config
+	clients *Clients
 }
 
-func New(ctx context.Context, cfg *config.Config) (*Container, error) {
+func New(cfg *config.Config) *Container {
 	c := &Container{Config: cfg}
-
-	storages, err := c.NewStorages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	c.storages = storages
-	c.repos = c.NewRepos()
 	c.clients = c.NewClients()
-	c.services = c.NewServices()
 
-	return c, nil
+	return c
 }
 
-// GraphQLHandler — внешний API gateway. Сервисы передаются резолверам как
-// интерфейсы: в ЛР3 это реализации в том же процессе, в ЛР6 — gRPC-клиенты.
+// GraphQLHandler — внешний API gateway. Резолверы получают сервисы как
+// интерфейсы: в ЛР3 это HTTP-клиенты, в ЛР6 — gRPC-клиенты.
 func (c *Container) GraphQLHandler() http.Handler {
 	return gql.NewHandler(resolver.New(
-		c.services.catalog,
-		c.services.appointment,
-		c.services.payment,
-		c.services.notification,
+		c.clients.catalog,
+		c.clients.appointment,
+		c.clients.payment,
+		c.clients.notification,
 		c.Config.Location,
 		c.Config.TestUserID,
 	))
-}
-
-func (c *Container) Close() error {
-	if c.storages == nil {
-		return nil
-	}
-
-	return c.storages.Close()
 }
