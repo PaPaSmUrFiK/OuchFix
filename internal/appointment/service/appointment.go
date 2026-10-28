@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/appointment/domain"
+	"github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
 
@@ -19,15 +20,21 @@ type AppointmentRepository interface {
 	ListPrescriptions(ctx context.Context, appointmentIDs []int64) ([]domain.Prescription, error)
 }
 
+// CatalogClient — то, что Appointment спрашивает у Catalog (CatalogGrpc).
+type CatalogClient interface {
+	GetDoctor(ctx context.Context, doctorID int64) (*catalog.DoctorReply, error)
+}
+
 type AppointmentService struct {
 	repo     AppointmentRepository
+	catalog  CatalogClient
 	location *time.Location
 }
 
 // NewAppointmentService: location — часовой пояс медцентра, в нём считаются
 // границы календарного дня для freeSlots.
-func NewAppointmentService(repo AppointmentRepository, location *time.Location) *AppointmentService {
-	return &AppointmentService{repo: repo, location: location}
+func NewAppointmentService(repo AppointmentRepository, catalog CatalogClient, location *time.Location) *AppointmentService {
+	return &AppointmentService{repo: repo, catalog: catalog, location: location}
 }
 
 // FreeSlots возвращает свободные слоты врача на дату вида 2006-01-02.
@@ -39,6 +46,10 @@ func (s *AppointmentService) FreeSlots(ctx context.Context, doctorID int64, date
 	day, err := time.ParseInLocation(dateLayout, date, s.location)
 	if err != nil {
 		return nil, fmt.Errorf("%w: date должна быть в формате YYYY-MM-DD, получено %q", pkgerrors.ErrInvalidArgument, date)
+	}
+
+	if _, err := s.catalog.GetDoctor(ctx, doctorID); err != nil {
+		return nil, fmt.Errorf("check doctor %d: %w", doctorID, err)
 	}
 
 	return s.repo.ListSlots(ctx, doctorID, domain.SlotFree, day, day.AddDate(0, 0, 1))

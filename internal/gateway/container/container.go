@@ -18,6 +18,9 @@ import (
 	paymentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/payment/repository/postgres"
 	paymentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/payment/service"
 	"github.com/PaPaSmUrFiK/OuchFix/migrations"
+	appointmentclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/appointment"
+	catalogclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
+	iamclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/iam"
 	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
@@ -98,6 +101,22 @@ func (c *Container) NewRepos() *Repos {
 	}
 }
 
+// Clients — межсервисные клиенты. В ЛР3 это заглушки по proto из ЛР2, в ЛР6
+// здесь же они заменятся на gRPC-реализации, сервисы при этом не меняются.
+type Clients struct {
+	catalog     catalogclient.Client
+	iam         iamclient.Client
+	appointment appointmentclient.Client
+}
+
+func (c *Container) NewClients() *Clients {
+	return &Clients{
+		catalog:     catalogclient.NewStub(),
+		iam:         iamclient.NewStub(),
+		appointment: appointmentclient.NewStub(),
+	}
+}
+
 type Services struct {
 	catalog      *catalogsvc.CatalogService
 	appointment  *appointmentsvc.AppointmentService
@@ -108,9 +127,9 @@ type Services struct {
 func (c *Container) NewServices() *Services {
 	return &Services{
 		catalog:      catalogsvc.NewCatalogService(c.repos.catalog),
-		appointment:  appointmentsvc.NewAppointmentService(c.repos.appointment, c.Config.Location),
-		payment:      paymentsvc.NewPaymentService(c.repos.payment),
-		notification: notificationsvc.NewNotificationService(c.repos.notification),
+		appointment:  appointmentsvc.NewAppointmentService(c.repos.appointment, c.clients.catalog, c.Config.Location),
+		payment:      paymentsvc.NewPaymentService(c.repos.payment, c.clients.catalog, c.clients.appointment),
+		notification: notificationsvc.NewNotificationService(c.repos.notification, c.clients.iam),
 	}
 }
 
@@ -120,6 +139,7 @@ type Container struct {
 	Config   *config.Config
 	storages *Storages
 	repos    *Repos
+	clients  *Clients
 	services *Services
 }
 
@@ -132,6 +152,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	}
 	c.storages = storages
 	c.repos = c.NewRepos()
+	c.clients = c.NewClients()
 	c.services = c.NewServices()
 
 	return c, nil
