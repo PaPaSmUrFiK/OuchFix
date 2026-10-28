@@ -10,8 +10,8 @@ import (
 	paymentdomain "github.com/PaPaSmUrFiK/OuchFix/internal/payment/domain"
 )
 
-// Интерфейсы того, что gateway просит у сервисов. В ЛР3 их реализуют сами
-// сервисы в том же процессе (container передаёт *service.XxxService), в ЛР6 —
+// Интерфейсы того, что gateway просит у сервисов. В ЛР3 их реализуют
+// HTTP-клиенты к внутренним REST API сервисов (internal/gateway/client), в ЛР6 —
 // gRPC-клиенты с теми же методами. Резолверы только переводят аргументы и
 // ответы, бизнес-логика остаётся в сервисах.
 
