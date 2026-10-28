@@ -4,27 +4,25 @@ import (
 	"fmt"
 
 	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
-	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
 )
 
 type Config struct {
-	LogLevel string
-	Server   httpserver.Config
+	LogLevel string           `env:"LOG_LEVEL" env-default:"info"`
+	Server   pkgconfig.Server `env-prefix:"PAYMENT_"`
 	// DB — подключение под своим пользователем Postgres с правами только на схему payment.
-	DB pkgconfig.Postgres
+	DB pkgconfig.Postgres `env-prefix:"PAYMENT_"`
 }
 
 func Load() (*Config, error) {
-	if err := pkgconfig.LoadEnv(); err != nil {
+	cfg := &Config{}
+	if err := pkgconfig.ReadEnv(cfg); err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	cfg := &Config{LogLevel: pkgconfig.String("LOG_LEVEL", "info")}
-	var err error
-	if cfg.Server, err = httpserver.LoadConfig("PAYMENT", 8084); err != nil {
+	if err := cfg.Server.Validate("PAYMENT_"); err != nil {
 		return nil, err
 	}
-	if cfg.DB, err = pkgconfig.LoadPostgres("PAYMENT"); err != nil {
+	if err := cfg.DB.Validate("PAYMENT_"); err != nil {
 		return nil, err
 	}
 
