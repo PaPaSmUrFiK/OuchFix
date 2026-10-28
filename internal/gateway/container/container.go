@@ -13,6 +13,10 @@ import (
 	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
 	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
+	notificationrepo "github.com/PaPaSmUrFiK/OuchFix/internal/notification/repository/postgres"
+	notificationsvc "github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
+	paymentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/payment/repository/postgres"
+	paymentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/payment/service"
 	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	pkgconfig "github.com/PaPaSmUrFiK/OuchFix/pkg/config"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
@@ -80,25 +84,33 @@ func (c *Container) NewStorages(ctx context.Context) (_ *Storages, err error) {
 
 type Repos struct {
 	catalog     *catalogrepo.CatalogRepository
-	appointment *appointmentrepo.AppointmentRepository
+	appointment  *appointmentrepo.AppointmentRepository
+	payment      *paymentrepo.PaymentRepository
+	notification *notificationrepo.NotificationRepository
 }
 
 func (c *Container) NewRepos() *Repos {
 	return &Repos{
 		catalog:     catalogrepo.NewCatalogRepository(c.storages.catalog),
-		appointment: appointmentrepo.NewAppointmentRepository(c.storages.appointment),
+		appointment:  appointmentrepo.NewAppointmentRepository(c.storages.appointment),
+		payment:      paymentrepo.NewPaymentRepository(c.storages.payment),
+		notification: notificationrepo.NewNotificationRepository(c.storages.notification),
 	}
 }
 
 type Services struct {
 	catalog     *catalogsvc.CatalogService
-	appointment *appointmentsvc.AppointmentService
+	appointment  *appointmentsvc.AppointmentService
+	payment      *paymentsvc.PaymentService
+	notification *notificationsvc.NotificationService
 }
 
 func (c *Container) NewServices() *Services {
 	return &Services{
 		catalog:     catalogsvc.NewCatalogService(c.repos.catalog),
-		appointment: appointmentsvc.NewAppointmentService(c.repos.appointment, c.Config.Location),
+		appointment:  appointmentsvc.NewAppointmentService(c.repos.appointment, c.Config.Location),
+		payment:      paymentsvc.NewPaymentService(c.repos.payment),
+		notification: notificationsvc.NewNotificationService(c.repos.notification),
 	}
 }
 
