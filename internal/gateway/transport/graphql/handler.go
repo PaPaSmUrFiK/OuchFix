@@ -12,12 +12,14 @@ import (
 )
 
 // NewHandler собирает HTTP-обработчик GraphQL: POST и GET-запросы, интроспекция
-// для playground. Подписок и загрузки файлов в схеме нет.
+// для playground, перевод доменных ошибок в extensions.code. Подписок и загрузки файлов в схеме нет.
 func NewHandler(r *resolver.Resolver) http.Handler {
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: r}))
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 	srv.Use(extension.Introspection{})
+	srv.SetErrorPresenter(presentError)
+	srv.SetRecoverFunc(recoverPanic)
 
 	return srv
 }
