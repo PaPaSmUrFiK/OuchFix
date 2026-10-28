@@ -8,6 +8,7 @@ import (
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/appointment/domain"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/appointment/service"
+	"github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
 
@@ -66,7 +67,7 @@ func minsk(t *testing.T) *time.Location {
 
 func TestFreeSlotsUsesLocalDayBounds(t *testing.T) {
 	repo := &fakeAppointmentRepo{}
-	svc := service.NewAppointmentService(repo, minsk(t))
+	svc := service.NewAppointmentService(repo, catalog.NewStub(), minsk(t))
 
 	if _, err := svc.FreeSlots(context.Background(), 1, "2026-11-02"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -82,7 +83,7 @@ func TestFreeSlotsUsesLocalDayBounds(t *testing.T) {
 
 func TestFreeSlotsRejectsBadInput(t *testing.T) {
 	repo := &fakeAppointmentRepo{}
-	svc := service.NewAppointmentService(repo, minsk(t))
+	svc := service.NewAppointmentService(repo, catalog.NewStub(), minsk(t))
 
 	for _, date := range []string{"", "02.11.2026", "2026-13-01", "2026-11-02T10:00"} {
 		if _, err := svc.FreeSlots(context.Background(), 1, date); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
@@ -103,7 +104,7 @@ func TestGetAppointmentAttachesDetails(t *testing.T) {
 		diagnoses:     []domain.Diagnosis{{ID: 1, AppointmentID: 1}, {ID: 2, AppointmentID: 1}},
 		prescriptions: []domain.Prescription{{ID: 1, AppointmentID: 1}},
 	}
-	svc := service.NewAppointmentService(repo, time.UTC)
+	svc := service.NewAppointmentService(repo, catalog.NewStub(), time.UTC)
 
 	got, err := svc.GetAppointment(context.Background(), 1)
 	if err != nil {
@@ -120,7 +121,7 @@ func TestGetAppointmentAttachesDetails(t *testing.T) {
 
 func TestPatientAppointmentsEmptyDetailsAreNotNil(t *testing.T) {
 	repo := &fakeAppointmentRepo{appointments: map[int64]domain.Appointment{2: {ID: 2, PatientID: 3}}}
-	svc := service.NewAppointmentService(repo, time.UTC)
+	svc := service.NewAppointmentService(repo, catalog.NewStub(), time.UTC)
 
 	status := domain.StatusQueue
 	got, err := svc.ListPatientAppointments(context.Background(), 3, &status)
@@ -137,5 +138,17 @@ func TestPatientAppointmentsEmptyDetailsAreNotNil(t *testing.T) {
 	bad := domain.Status("unknown")
 	if _, err := svc.ListPatientAppointments(context.Background(), 3, &bad); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
 		t.Fatalf("want ErrInvalidArgument, got %v", err)
+	}
+}
+
+func TestFreeSlotsUnknownDoctorIsNotFound(t *testing.T) {
+	repo := &fakeAppointmentRepo{}
+	svc := service.NewAppointmentService(repo, catalog.NewStub(), time.UTC)
+
+	if _, err := svc.FreeSlots(context.Background(), 999, "2026-11-02"); !errors.Is(err, pkgerrors.ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+	if repo.slotCalls != 0 {
+		t.Fatalf("slots must not be read for unknown doctor")
 	}
 }
