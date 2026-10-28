@@ -8,6 +8,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	appointmentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/repository/postgres"
+	appointmentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/service"
 	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
 	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
@@ -77,22 +79,26 @@ func (c *Container) NewStorages(ctx context.Context) (_ *Storages, err error) {
 }
 
 type Repos struct {
-	catalog *catalogrepo.CatalogRepository
+	catalog     *catalogrepo.CatalogRepository
+	appointment *appointmentrepo.AppointmentRepository
 }
 
 func (c *Container) NewRepos() *Repos {
 	return &Repos{
-		catalog: catalogrepo.NewCatalogRepository(c.storages.catalog),
+		catalog:     catalogrepo.NewCatalogRepository(c.storages.catalog),
+		appointment: appointmentrepo.NewAppointmentRepository(c.storages.appointment),
 	}
 }
 
 type Services struct {
-	catalog *catalogsvc.CatalogService
+	catalog     *catalogsvc.CatalogService
+	appointment *appointmentsvc.AppointmentService
 }
 
 func (c *Container) NewServices() *Services {
 	return &Services{
-		catalog: catalogsvc.NewCatalogService(c.repos.catalog),
+		catalog:     catalogsvc.NewCatalogService(c.repos.catalog),
+		appointment: appointmentsvc.NewAppointmentService(c.repos.appointment, c.Config.Location),
 	}
 }
 

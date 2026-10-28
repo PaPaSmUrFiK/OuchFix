@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	_ "time/tzdata" // зоны для APP_TIMEZONE и на Windows без системной базы
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/app"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"

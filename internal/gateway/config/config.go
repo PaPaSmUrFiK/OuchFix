@@ -11,6 +11,8 @@ import (
 
 type Config struct {
 	LogLevel string
+	// Location — часовой пояс медцентра: в нём считаются границы дня (freeSlots).
+	Location *time.Location
 	Server   Server
 	DB       Databases
 }
@@ -39,6 +41,13 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{LogLevel: pkgconfig.String("LOG_LEVEL", "info")}
+
+	timezone := pkgconfig.String("APP_TIMEZONE", "Europe/Minsk")
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("APP_TIMEZONE must be an IANA zone, got %q: %w", timezone, err)
+	}
+	cfg.Location = location
 
 	server, err := loadServer()
 	if err != nil {
