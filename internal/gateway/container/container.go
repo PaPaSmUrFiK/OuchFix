@@ -83,7 +83,7 @@ func (c *Container) NewStorages(ctx context.Context) (_ *Storages, err error) {
 }
 
 type Repos struct {
-	catalog     *catalogrepo.CatalogRepository
+	catalog      *catalogrepo.CatalogRepository
 	appointment  *appointmentrepo.AppointmentRepository
 	payment      *paymentrepo.PaymentRepository
 	notification *notificationrepo.NotificationRepository
@@ -91,7 +91,7 @@ type Repos struct {
 
 func (c *Container) NewRepos() *Repos {
 	return &Repos{
-		catalog:     catalogrepo.NewCatalogRepository(c.storages.catalog),
+		catalog:      catalogrepo.NewCatalogRepository(c.storages.catalog),
 		appointment:  appointmentrepo.NewAppointmentRepository(c.storages.appointment),
 		payment:      paymentrepo.NewPaymentRepository(c.storages.payment),
 		notification: notificationrepo.NewNotificationRepository(c.storages.notification),
@@ -99,7 +99,7 @@ func (c *Container) NewRepos() *Repos {
 }
 
 type Services struct {
-	catalog     *catalogsvc.CatalogService
+	catalog      *catalogsvc.CatalogService
 	appointment  *appointmentsvc.AppointmentService
 	payment      *paymentsvc.PaymentService
 	notification *notificationsvc.NotificationService
@@ -107,7 +107,7 @@ type Services struct {
 
 func (c *Container) NewServices() *Services {
 	return &Services{
-		catalog:     catalogsvc.NewCatalogService(c.repos.catalog),
+		catalog:      catalogsvc.NewCatalogService(c.repos.catalog),
 		appointment:  appointmentsvc.NewAppointmentService(c.repos.appointment, c.Config.Location),
 		payment:      paymentsvc.NewPaymentService(c.repos.payment),
 		notification: notificationsvc.NewNotificationService(c.repos.notification),
