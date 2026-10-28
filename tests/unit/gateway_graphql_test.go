@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -75,7 +76,10 @@ func (f *fakeGatewayServices) ListPatientAppointments(_ context.Context, patient
 	return nil, nil
 }
 
-func (f *fakeGatewayServices) ListPayments(context.Context, *int64) ([]paymentdomain.Payment, error) {
+func (f *fakeGatewayServices) ListPayments(_ context.Context, patientID *int64) ([]paymentdomain.Payment, error) {
+	if patientID != nil && *patientID == 500 {
+		return nil, errors.New("pq: connection refused to 10.0.0.1")
+	}
 	return nil, nil
 }
 
@@ -180,5 +184,38 @@ func TestGraphQLNotImplementedOperations(t *testing.T) {
 		if resp := doGraphQL(t, h, q); len(resp.Errors) != 1 {
 			t.Fatalf("%s: want 1 error, got %+v", q, resp.Errors)
 		}
+	}
+}
+
+func TestGraphQLErrorCodes(t *testing.T) {
+	h, _ := newGatewayHandler(t, 5)
+	for _, tc := range []struct {
+		query string
+		code  string
+	}{
+		{`{ appointment(id: "99") { id } }`, "NOT_FOUND"},
+		{`{ appointment(id: "abc") { id } }`, "BAD_USER_INPUT"},
+		{`{ me { id } }`, "NOT_IMPLEMENTED"},
+		{`{ payments(patientId: "500") { id } }`, "INTERNAL"},
+		{`{ unknownField }`, "GRAPHQL_VALIDATION_FAILED"},
+	} {
+		resp := doGraphQL(t, h, tc.query)
+		if len(resp.Errors) != 1 {
+			t.Fatalf("%s: want 1 error, got %+v", tc.query, resp.Errors)
+		}
+		if got := resp.Errors[0].Extensions["code"]; got != tc.code {
+			t.Fatalf("%s: code = %v, want %s", tc.query, got, tc.code)
+		}
+		if tc.code == "INTERNAL" && strings.Contains(resp.Errors[0].Message, "10.0.0.1") {
+			t.Fatalf("internal details leaked: %s", resp.Errors[0].Message)
+		}
+	}
+}
+
+func TestGraphQLUnknownUserIsNotFound(t *testing.T) {
+	h, _ := newGatewayHandler(t, 42)
+	resp := doGraphQL(t, h, `{ myAppointments { id } }`)
+	if len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != "NOT_FOUND" {
+		t.Fatalf("got %+v", resp.Errors)
 	}
 }
