@@ -3,14 +3,14 @@ package unit
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 	httpclient "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/client"
@@ -21,17 +21,17 @@ import (
 // а внутренние ошибки наружу не утекают.
 func TestHTTPClientKeepsDomainErrors(t *testing.T) {
 	app := fiber.New()
-	app.Get("/nf", func(c *fiber.Ctx) error {
+	app.Get("/nf", func(c fiber.Ctx) error {
 		return httpserver.WriteError(c, pkgerrors.ErrNotFound)
 	})
-	app.Get("/bad/:id", func(c *fiber.Ctx) error {
+	app.Get("/bad/:id", func(c fiber.Ctx) error {
 		_, err := httpserver.ParamID(c, "id")
 		return httpserver.WriteError(c, err)
 	})
-	app.Get("/boom", func(c *fiber.Ctx) error {
+	app.Get("/boom", func(c fiber.Ctx) error {
 		return httpserver.WriteError(c, errors.New("pq: secret sql"))
 	})
-	app.Get("/ok", func(c *fiber.Ctx) error {
+	app.Get("/ok", func(c fiber.Ctx) error {
 		return httpserver.Reply(c, []int{1, 2}, nil)
 	})
 	srv := httptest.NewServer(adaptorHandler(app))
@@ -59,15 +59,5 @@ func TestHTTPClientKeepsDomainErrors(t *testing.T) {
 }
 
 func adaptorHandler(app *fiber.App) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp, err := app.Test(r, -1)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-		w.WriteHeader(resp.StatusCode)
-		_, _ = io.Copy(w, resp.Body)
-	})
+	return adaptor.FiberApp(app)
 }

@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/logging"
 )
@@ -34,10 +34,9 @@ type Server struct {
 
 func New(cfg Config, routes func(fiber.Router)) *Server {
 	app := fiber.New(fiber.Config{
-		ReadTimeout:           cfg.ReadTimeout,
-		WriteTimeout:          cfg.WriteTimeout,
-		IdleTimeout:           cfg.IdleTimeout,
-		DisableStartupMessage: true,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	})
 	app.Use(requestid.New(), recover.New())
 	routes(app)
@@ -49,7 +48,7 @@ func New(cfg Config, routes func(fiber.Router)) *Server {
 func (s *Server) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- s.app.Listen(s.cfg.Addr)
+		errCh <- s.app.Listen(s.cfg.Addr, fiber.ListenConfig{DisableStartupMessage: true})
 	}()
 	logging.Info("http server started", "addr", s.cfg.Addr)
 
@@ -69,6 +68,6 @@ func (s *Server) Run(ctx context.Context) error {
 	return <-errCh
 }
 
-func Health(c *fiber.Ctx) error {
+func Health(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "ok"})
 }

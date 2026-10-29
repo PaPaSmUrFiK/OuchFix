@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
 )

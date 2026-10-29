@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
@@ -13,13 +13,13 @@ func New(svc *service.NotificationService) func(fiber.Router) {
 	return func(router fiber.Router) {
 		router.Get("/health", httpserver.Health)
 
-		router.Get("/users/:userId/notifications", func(c *fiber.Ctx) error {
+		router.Get("/users/:userId/notifications", func(c fiber.Ctx) error {
 			userID, err := httpserver.ParamID(c, "userId")
 			if err != nil {
 				return httpserver.WriteError(c, err)
 			}
 			status := (*domain.Status)(httpserver.QueryString(c, "status"))
-			items, err := svc.ListUserNotifications(c.UserContext(), userID, status)
+			items, err := svc.ListUserNotifications(c.Context(), userID, status)
 			return httpserver.Reply(c, items, err)
 		})
 	}

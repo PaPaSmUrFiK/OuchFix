@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
@@ -20,7 +20,7 @@ type ErrorBody struct {
 
 // WriteError переводит доменную ошибку в HTTP-статус. Текст внутренних ошибок
 // (SQL, сеть) наружу не отдаётся, только в лог.
-func WriteError(c *fiber.Ctx, err error) error {
+func WriteError(c fiber.Ctx, err error) error {
 	status := fiber.StatusInternalServerError
 	switch {
 	case errors.Is(err, pkgerrors.ErrNotFound):
@@ -30,14 +30,14 @@ func WriteError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, pkgerrors.ErrNotImplemented):
 		status = fiber.StatusNotImplemented
 	default:
-		slog.ErrorContext(c.UserContext(), "request failed", "path", c.Path(), "error", err)
+		slog.ErrorContext(c.Context(), "request failed", "path", c.Path(), "error", err)
 		return c.Status(status).JSON(ErrorBody{Error: internalMessage})
 	}
 	return c.Status(status).JSON(ErrorBody{Error: err.Error()})
 }
 
 // Reply отдаёт результат сервиса как JSON или ошибку через WriteError.
-func Reply(c *fiber.Ctx, data any, err error) error {
+func Reply(c fiber.Ctx, data any, err error) error {
 	if err != nil {
 		return WriteError(c, err)
 	}
@@ -45,12 +45,12 @@ func Reply(c *fiber.Ctx, data any, err error) error {
 }
 
 // ParamID читает числовой id из пути. Нечисловой id — ошибка аргумента.
-func ParamID(c *fiber.Ctx, name string) (int64, error) {
+func ParamID(c fiber.Ctx, name string) (int64, error) {
 	return parseID(name, c.Params(name))
 }
 
 // QueryID читает необязательный числовой id из query-строки.
-func QueryID(c *fiber.Ctx, name string) (*int64, error) {
+func QueryID(c fiber.Ctx, name string) (*int64, error) {
 	raw := c.Query(name)
 	if raw == "" {
 		return nil, nil
@@ -63,7 +63,7 @@ func QueryID(c *fiber.Ctx, name string) (*int64, error) {
 }
 
 // QueryString читает необязательную строку из query-строки.
-func QueryString(c *fiber.Ctx, name string) *string {
+func QueryString(c fiber.Ctx, name string) *string {
 	raw := c.Query(name)
 	if raw == "" {
 		return nil
