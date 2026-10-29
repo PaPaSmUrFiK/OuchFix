@@ -9,47 +9,47 @@ import (
 	httpclient "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/client"
 )
 
-// Clients — HTTP-прокси gateway к сервисам: каждый знает только базовый адрес
+// Services — HTTP-прокси gateway к сервисам: каждый знает только базовый адрес
 // сервиса. Своей БД у gateway нет.
-type Clients struct {
-	iam          *httpclient.Client
-	catalog      *httpclient.Client
-	appointment  *httpclient.Client
-	payment      *httpclient.Client
-	notification *httpclient.Client
+type Services struct {
+	proxies resolver.Services
 }
 
-func (c *Container) NewClients() *Clients {
+func (c *Container) NewServices() *Services {
 	s := c.Config.Services
-	return &Clients{
-		iam:          httpclient.New(s.IAMBaseURL, s.Timeout),
-		catalog:      httpclient.New(s.CatalogBaseURL, s.Timeout),
-		appointment:  httpclient.New(s.AppointmentBaseURL, s.Timeout),
-		payment:      httpclient.New(s.PaymentBaseURL, s.Timeout),
-		notification: httpclient.New(s.NotificationBaseURL, s.Timeout),
+	return &Services{
+		proxies: resolver.Services{
+			IAM:          httpclient.New(s.IAMBaseURL, s.Timeout),
+			Catalog:      httpclient.New(s.CatalogBaseURL, s.Timeout),
+			Appointment:  httpclient.New(s.AppointmentBaseURL, s.Timeout),
+			Payment:      httpclient.New(s.PaymentBaseURL, s.Timeout),
+			Notification: httpclient.New(s.NotificationBaseURL, s.Timeout),
+		},
 	}
 }
 
-// Container — composition root gateway: прокси к сервисам и транспорт.
+type Handlers struct {
+	GraphQL http.Handler
+}
+
+func (c *Container) NewHandlers() *Handlers {
+	return &Handlers{
+		GraphQL: gql.NewHandler(resolver.New(c.services.proxies, c.Config.TestUserID)),
+	}
+}
+
+// Container — composition root gateway: прокси к сервисам и обработчик GraphQL.
 type Container struct {
-	Config  *config.Config
-	clients *Clients
+	Config   *config.Config
+	services *Services
+	Handlers *Handlers
 }
 
 func New(cfg *config.Config) *Container {
 	c := &Container{Config: cfg}
-	c.clients = c.NewClients()
+
+	c.services = c.NewServices()
+	c.Handlers = c.NewHandlers()
 
 	return c
-}
-
-// GraphQLHandler — внешний API gateway.
-func (c *Container) GraphQLHandler() http.Handler {
-	return gql.NewHandler(resolver.New(resolver.Services{
-		IAM:          c.clients.iam,
-		Catalog:      c.clients.catalog,
-		Appointment:  c.clients.appointment,
-		Payment:      c.clients.payment,
-		Notification: c.clients.notification,
-	}, c.Config.TestUserID))
 }
