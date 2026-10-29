@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 -- Слоты на 2026-11-02 и 2026-11-03 (время по Минску, UTC+3).
 INSERT INTO appointment.schedule_slot (id, doctor_id, starts_at, ends_at, status) VALUES
   (1, 1, '2026-11-02 09:00+03', '2026-11-02 09:20+03', 'busy'),
@@ -30,6 +31,16 @@ SELECT setval('appointment.schedule_slot_id_seq', 8);
 SELECT setval('appointment.appointment_id_seq', 5);
 SELECT setval('appointment.diagnosis_id_seq', 2);
 SELECT setval('appointment.prescription_id_seq', 2);
+-- +goose StatementEnd
 
 -- +goose Down
-TRUNCATE appointment.prescription, appointment.diagnosis, appointment.appointment, appointment.schedule_slot RESTART IDENTITY CASCADE;
+-- +goose StatementBegin
+DELETE FROM appointment.prescription WHERE id IN (1, 2);
+DELETE FROM appointment.diagnosis WHERE id IN (1, 2);
+DELETE FROM appointment.appointment WHERE id IN (1, 2, 3, 4, 5);
+DELETE FROM appointment.schedule_slot WHERE id IN (1, 2, 3, 4, 5, 6, 7, 8);
+SELECT setval('appointment.prescription_id_seq', 1, false);
+SELECT setval('appointment.diagnosis_id_seq', 1, false);
+SELECT setval('appointment.appointment_id_seq', 1, false);
+SELECT setval('appointment.schedule_slot_id_seq', 1, false);
+-- +goose StatementEnd

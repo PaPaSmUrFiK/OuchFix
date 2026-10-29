@@ -7,7 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/iam/config"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
+	iamrepo "github.com/PaPaSmUrFiK/OuchFix/internal/iam/repository/postgres"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
 
@@ -23,7 +23,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect iam db: %w", err)
 	}
-	if err := postgres.Migrate(ctx, db, "iam", migrations.IAM); err != nil {
+	if err := iamrepo.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, fmt.Errorf("migrate iam: %w (close: %s)", err, closeErr)
 		}

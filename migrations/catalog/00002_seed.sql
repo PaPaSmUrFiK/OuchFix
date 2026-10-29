@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 INSERT INTO catalog.specialty (id, name) VALUES
   (1, 'Терапевт'),
   (2, 'Кардиолог'),
@@ -34,6 +35,20 @@ SELECT setval('catalog.doctor_id_seq', 3);
 SELECT setval('catalog.medical_service_id_seq', 4);
 SELECT setval('catalog.medication_id_seq', 3);
 SELECT setval('catalog.medication_dispense_id_seq', 1);
+-- +goose StatementEnd
 
 -- +goose Down
-TRUNCATE catalog.medication_dispense, catalog.medication, catalog.medical_service, catalog.doctor, catalog.patient, catalog.specialty RESTART IDENTITY CASCADE;
+-- +goose StatementBegin
+DELETE FROM catalog.medication_dispense WHERE id IN (1);
+DELETE FROM catalog.medication WHERE id IN (1, 2, 3);
+DELETE FROM catalog.medical_service WHERE id IN (1, 2, 3, 4);
+DELETE FROM catalog.doctor WHERE id IN (1, 2, 3);
+DELETE FROM catalog.patient WHERE id IN (1, 2, 3);
+DELETE FROM catalog.specialty WHERE id IN (1, 2, 3);
+SELECT setval('catalog.medication_dispense_id_seq', 1, false);
+SELECT setval('catalog.medication_id_seq', 1, false);
+SELECT setval('catalog.medical_service_id_seq', 1, false);
+SELECT setval('catalog.doctor_id_seq', 1, false);
+SELECT setval('catalog.patient_id_seq', 1, false);
+SELECT setval('catalog.specialty_id_seq', 1, false);
+-- +goose StatementEnd

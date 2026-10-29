@@ -9,7 +9,6 @@ import (
 	"github.com/PaPaSmUrFiK/OuchFix/internal/notification/config"
 	notificationrepo "github.com/PaPaSmUrFiK/OuchFix/internal/notification/repository/postgres"
 	notificationsvc "github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	iamclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/iam"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
@@ -27,7 +26,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect notification db: %w", err)
 	}
-	if err := postgres.Migrate(ctx, db, "notification", migrations.Notification); err != nil {
+	if err := notificationrepo.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, fmt.Errorf("migrate notification: %w (close: %s)", err, closeErr)
 		}

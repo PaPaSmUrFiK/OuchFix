@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 CREATE TABLE appointment.schedule_slot (
   id            BIGSERIAL PRIMARY KEY,
   doctor_id     BIGINT       NOT NULL,         -- id врача из Catalog
@@ -35,9 +36,12 @@ CREATE TABLE appointment.prescription (
   medication_id   BIGINT,                       -- Catalog.medication (ссылка-id)
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 DROP TABLE IF EXISTS appointment.prescription;
 DROP TABLE IF EXISTS appointment.diagnosis;
 DROP TABLE IF EXISTS appointment.appointment;
 DROP TABLE IF EXISTS appointment.schedule_slot;
+-- +goose StatementEnd

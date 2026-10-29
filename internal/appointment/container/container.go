@@ -9,7 +9,6 @@ import (
 	"github.com/PaPaSmUrFiK/OuchFix/internal/appointment/config"
 	appointmentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/repository/postgres"
 	appointmentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/service"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	catalogclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
@@ -27,7 +26,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect appointment db: %w", err)
 	}
-	if err := postgres.Migrate(ctx, db, "appointment", migrations.Appointment); err != nil {
+	if err := appointmentrepo.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, fmt.Errorf("migrate appointment: %w (close: %s)", err, closeErr)
 		}

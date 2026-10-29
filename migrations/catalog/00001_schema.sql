@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 CREATE TABLE catalog.specialty (
   id            BIGSERIAL PRIMARY KEY,
   name          VARCHAR(128) NOT NULL UNIQUE
@@ -47,11 +48,14 @@ CREATE TABLE catalog.medication_dispense (
   quantity        NUMERIC(12,2) NOT NULL,
   dispensed_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 DROP TABLE IF EXISTS catalog.medication_dispense;
 DROP TABLE IF EXISTS catalog.medication;
 DROP TABLE IF EXISTS catalog.medical_service;
 DROP TABLE IF EXISTS catalog.doctor;
 DROP TABLE IF EXISTS catalog.patient;
 DROP TABLE IF EXISTS catalog.specialty;
+-- +goose StatementEnd

@@ -9,7 +9,6 @@ import (
 	"github.com/PaPaSmUrFiK/OuchFix/internal/payment/config"
 	paymentrepo "github.com/PaPaSmUrFiK/OuchFix/internal/payment/repository/postgres"
 	paymentsvc "github.com/PaPaSmUrFiK/OuchFix/internal/payment/service"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	appointmentclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/appointment"
 	catalogclient "github.com/PaPaSmUrFiK/OuchFix/pkg/client/catalog"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
@@ -28,7 +27,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect payment db: %w", err)
 	}
-	if err := postgres.Migrate(ctx, db, "payment", migrations.Payment); err != nil {
+	if err := paymentrepo.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, fmt.Errorf("migrate payment: %w (close: %s)", err, closeErr)
 		}

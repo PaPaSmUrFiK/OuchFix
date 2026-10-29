@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 CREATE TABLE iam.role (
   id            BIGSERIAL PRIMARY KEY,
   name          VARCHAR(64)  NOT NULL UNIQUE,
@@ -26,9 +27,12 @@ CREATE TABLE iam.app_user (
   phone         VARCHAR(32),
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 DROP TABLE IF EXISTS iam.app_user;
 DROP TABLE IF EXISTS iam.role_permission;
 DROP TABLE IF EXISTS iam.permission;
 DROP TABLE IF EXISTS iam.role;
+-- +goose StatementEnd

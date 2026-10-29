@@ -9,7 +9,6 @@ import (
 	"github.com/PaPaSmUrFiK/OuchFix/internal/catalog/config"
 	catalogrepo "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/repository/postgres"
 	catalogsvc "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
-	"github.com/PaPaSmUrFiK/OuchFix/migrations"
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
 
@@ -26,7 +25,7 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect catalog db: %w", err)
 	}
-	if err := postgres.Migrate(ctx, db, "catalog", migrations.Catalog); err != nil {
+	if err := catalogrepo.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, fmt.Errorf("migrate catalog: %w (close: %s)", err, closeErr)
 		}
