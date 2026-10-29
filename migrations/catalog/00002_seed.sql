@@ -1,3 +1,4 @@
+-- +goose Up
 INSERT INTO catalog.specialty (id, name) VALUES
   (1, 'Терапевт'),
   (2, 'Кардиолог'),
@@ -33,3 +34,6 @@ SELECT setval('catalog.doctor_id_seq', 3);
 SELECT setval('catalog.medical_service_id_seq', 4);
 SELECT setval('catalog.medication_id_seq', 3);
 SELECT setval('catalog.medication_dispense_id_seq', 1);
+
+-- +goose Down
+TRUNCATE catalog.medication_dispense, catalog.medication, catalog.medical_service, catalog.doctor, catalog.patient, catalog.specialty RESTART IDENTITY CASCADE;

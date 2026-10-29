@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE notification.notification (
   id              BIGSERIAL PRIMARY KEY,
   user_id         BIGINT       NOT NULL,       -- IAM
@@ -10,3 +11,6 @@ CREATE TABLE notification.notification (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   sent_at         TIMESTAMPTZ
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS notification.notification;

@@ -1,3 +1,4 @@
+-- +goose Up
 -- Тестовые данные ЛР3. Пароли не настоящие: вход появится в ЛР5.
 INSERT INTO iam.role (id, name, description) VALUES
   (1, 'patient', 'Пациент'),
@@ -29,3 +30,6 @@ INSERT INTO iam.app_user (id, role_id, email, password_hash, full_name, phone) V
 SELECT setval('iam.role_id_seq', 3);
 SELECT setval('iam.permission_id_seq', 6);
 SELECT setval('iam.app_user_id_seq', 7);
+
+-- +goose Down
+TRUNCATE iam.app_user, iam.role_permission, iam.permission, iam.role RESTART IDENTITY CASCADE;

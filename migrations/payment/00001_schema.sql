@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE payment.payment (
   id              BIGSERIAL PRIMARY KEY,
   appointment_id  BIGINT         NOT NULL,     -- Appointment
@@ -9,3 +10,6 @@ CREATE TABLE payment.payment (
   created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   paid_at         TIMESTAMPTZ
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS payment.payment;
