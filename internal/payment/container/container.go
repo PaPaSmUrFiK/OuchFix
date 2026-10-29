@@ -16,26 +16,13 @@ import (
 	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
 )
 
-type Storages struct {
-	db *sqlx.DB
-}
-
-func (c *Container) NewStorages(ctx context.Context) (*Storages, error) {
-	db, err := postgres.New(ctx, c.Config.DB)
-	if err != nil {
-		return nil, fmt.Errorf("new postgres: %w", err)
-	}
-
-	return &Storages{db: db}, nil
-}
-
 type Repos struct {
 	payment *paymentrepo.PaymentRepository
 }
 
 func (c *Container) NewRepos() *Repos {
 	return &Repos{
-		payment: paymentrepo.NewPaymentRepository(c.storages.db),
+		payment: paymentrepo.NewPaymentRepository(c.db),
 	}
 }
 
@@ -63,7 +50,7 @@ func (c *Container) NewHandlers() *Handlers {
 // Container — composition root payment-сервиса: БД, репозиторий, сервис и маршруты.
 type Container struct {
 	Config   *config.Config
-	storages *Storages
+	db       *sqlx.DB
 	repos    *Repos
 	services *Services
 	Handlers *Handlers
@@ -72,14 +59,14 @@ type Container struct {
 func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 	c := &Container{Config: cfg}
 
-	storages, err := c.NewStorages(ctx)
+	db, err := postgres.New(ctx, cfg.DB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new postgres: %w", err)
 	}
-	c.storages = storages
+	c.db = db
 
-	if err := paymentrepo.Migrate(ctx, storages.db); err != nil {
-		closeErr := storages.db.Close()
+	if err := paymentrepo.Migrate(ctx, db); err != nil {
+		closeErr := db.Close()
 		if closeErr != nil {
 			return nil, fmt.Errorf("migrate: %w (close: %s)", err, closeErr)
 		}
@@ -94,9 +81,9 @@ func New(ctx context.Context, cfg *config.Config) (*Container, error) {
 }
 
 func (c *Container) Close() error {
-	if c.storages == nil {
+	if c.db == nil {
 		return nil
 	}
 
-	return c.storages.db.Close()
+	return c.db.Close()
 }
