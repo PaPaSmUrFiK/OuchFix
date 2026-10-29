@@ -62,15 +62,6 @@ func QueryID(c fiber.Ctx, name string) (*int64, error) {
 	return &id, nil
 }
 
-// QueryString читает необязательную строку из query-строки.
-func QueryString(c fiber.Ctx, name string) *string {
-	raw := c.Query(name)
-	if raw == "" {
-		return nil
-	}
-	return &raw
-}
-
 func parseID(name, raw string) (int64, error) {
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {

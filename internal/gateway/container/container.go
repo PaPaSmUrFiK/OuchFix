@@ -3,33 +3,34 @@ package container
 import (
 	"net/http"
 
-	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/client"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
 	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/resolver"
 	httpclient "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/client"
 )
 
-// Clients — клиенты gateway к сервисам. Своей БД у gateway нет: данные только
-// через внутренние REST API сервисов (в ЛР6 — gRPC).
+// Clients — HTTP-прокси gateway к сервисам: каждый знает только базовый адрес
+// сервиса. Своей БД у gateway нет.
 type Clients struct {
-	catalog      *client.Catalog
-	appointment  *client.Appointment
-	payment      *client.Payment
-	notification *client.Notification
+	iam          *httpclient.Client
+	catalog      *httpclient.Client
+	appointment  *httpclient.Client
+	payment      *httpclient.Client
+	notification *httpclient.Client
 }
 
 func (c *Container) NewClients() *Clients {
 	s := c.Config.Services
 	return &Clients{
-		catalog:      client.NewCatalog(httpclient.New(s.CatalogURL, s.Timeout)),
-		appointment:  client.NewAppointment(httpclient.New(s.AppointmentURL, s.Timeout)),
-		payment:      client.NewPayment(httpclient.New(s.PaymentURL, s.Timeout)),
-		notification: client.NewNotification(httpclient.New(s.NotificationURL, s.Timeout)),
+		iam:          httpclient.New(s.IAMBaseURL, s.Timeout),
+		catalog:      httpclient.New(s.CatalogBaseURL, s.Timeout),
+		appointment:  httpclient.New(s.AppointmentBaseURL, s.Timeout),
+		payment:      httpclient.New(s.PaymentBaseURL, s.Timeout),
+		notification: httpclient.New(s.NotificationBaseURL, s.Timeout),
 	}
 }
 
-// Container — composition root gateway: клиенты сервисов и транспорт.
+// Container — composition root gateway: прокси к сервисам и транспорт.
 type Container struct {
 	Config  *config.Config
 	clients *Clients
@@ -42,15 +43,13 @@ func New(cfg *config.Config) *Container {
 	return c
 }
 
-// GraphQLHandler — внешний API gateway. Резолверы получают сервисы как
-// интерфейсы: в ЛР3 это HTTP-клиенты, в ЛР6 — gRPC-клиенты.
+// GraphQLHandler — внешний API gateway.
 func (c *Container) GraphQLHandler() http.Handler {
-	return gql.NewHandler(resolver.New(
-		c.clients.catalog,
-		c.clients.appointment,
-		c.clients.payment,
-		c.clients.notification,
-		c.Config.Location,
-		c.Config.TestUserID,
-	))
+	return gql.NewHandler(resolver.New(resolver.Services{
+		IAM:          c.clients.iam,
+		Catalog:      c.clients.catalog,
+		Appointment:  c.clients.appointment,
+		Payment:      c.clients.payment,
+		Notification: c.clients.notification,
+	}, c.Config.TestUserID))
 }

@@ -1,5 +1,5 @@
-// Package httpclient — клиент внутреннего REST API сервисов для gateway.
-// В ЛР6 заменится на gRPC.
+// Package httpclient — HTTP-прокси gateway к внутреннему REST API сервиса:
+// знает только базовый адрес сервиса и декодирует JSON-ответ как есть.
 package httpclient
 
 import (

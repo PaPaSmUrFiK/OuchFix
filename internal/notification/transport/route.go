@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
@@ -8,8 +10,9 @@ import (
 	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
 )
 
-// New — внутренний REST API уведомлений для gateway. В ЛР6 заменится на gRPC.
-func New(svc *service.NotificationService) func(fiber.Router) {
+// New — внутренний REST API уведомлений, к которому gateway проксирует запросы.
+// loc — пояс медцентра, в нём отдаётся время.
+func New(svc *service.NotificationService, loc *time.Location) func(fiber.Router) {
 	return func(router fiber.Router) {
 		router.Get("/health", httpserver.Health)
 
@@ -18,9 +21,9 @@ func New(svc *service.NotificationService) func(fiber.Router) {
 			if err != nil {
 				return httpserver.WriteError(c, err)
 			}
-			status := (*domain.Status)(httpserver.QueryString(c, "status"))
+			status := httpserver.QueryEnum[domain.Status](c, "status")
 			items, err := svc.ListUserNotifications(c.Context(), userID, status)
-			return httpserver.Reply(c, items, err)
+			return httpserver.Reply(c, httpserver.MapList(items, toNotification(loc)), err)
 		})
 	}
 }

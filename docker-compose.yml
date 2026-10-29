@@ -67,7 +67,7 @@ services:
       NOTIFICATION_PORT: 8085
       NOTIFICATION_POSTGRES_DSN: postgres://ouchfix_notification:ouchfix_notification@postgres:5432/ouchfix?sslmode=disable
 
-  # Gateway без доступа к БД: только адреса сервисов.
+  # Gateway без доступа к БД: только базовые адреса сервисов, запросы проксирует.
   gateway:
     build: { context: ., args: { SERVICE: gateway } }
     restart: on-failure
@@ -75,10 +75,11 @@ services:
       <<: *env
       GATEWAY_PORT: 8080
       GATEWAY_TEST_USER_ID: ${GATEWAY_TEST_USER_ID:-5}
-      CATALOG_URL: http://catalog:8082
-      APPOINTMENT_URL: http://appointment:8083
-      PAYMENT_URL: http://payment:8084
-      NOTIFICATION_URL: http://notification:8085
+      IAM_BASE_URL: http://iam:8081
+      CATALOG_BASE_URL: http://catalog:8082
+      APPOINTMENT_BASE_URL: http://appointment:8083
+      PAYMENT_BASE_URL: http://payment:8084
+      NOTIFICATION_BASE_URL: http://notification:8085
     ports:
       - "8080:8080"
     depends_on: [iam, catalog, appointment, payment, notification]

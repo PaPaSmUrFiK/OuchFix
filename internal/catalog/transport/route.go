@@ -7,14 +7,14 @@ import (
 	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
 )
 
-// New — внутренний REST API каталога для gateway. В ЛР6 заменится на gRPC.
+// New — внутренний REST API каталога, к которому gateway проксирует запросы.
 func New(svc *service.CatalogService) func(fiber.Router) {
 	return func(router fiber.Router) {
 		router.Get("/health", httpserver.Health)
 
 		router.Get("/specialties", func(c fiber.Ctx) error {
 			items, err := svc.ListSpecialties(c.Context())
-			return httpserver.Reply(c, items, err)
+			return httpserver.Reply(c, httpserver.MapList(items, toSpecialty), err)
 		})
 		router.Get("/doctors", func(c fiber.Ctx) error {
 			specialtyID, err := httpserver.QueryID(c, "specialtyId")
@@ -22,7 +22,7 @@ func New(svc *service.CatalogService) func(fiber.Router) {
 				return httpserver.WriteError(c, err)
 			}
 			items, err := svc.ListDoctors(c.Context(), specialtyID)
-			return httpserver.Reply(c, items, err)
+			return httpserver.Reply(c, httpserver.MapList(items, toDoctor), err)
 		})
 		router.Get("/patients/by-user/:userId", func(c fiber.Ctx) error {
 			userID, err := httpserver.ParamID(c, "userId")
@@ -30,15 +30,18 @@ func New(svc *service.CatalogService) func(fiber.Router) {
 				return httpserver.WriteError(c, err)
 			}
 			patient, err := svc.GetPatientByUserID(c.Context(), userID)
-			return httpserver.Reply(c, patient, err)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, toPatient(patient), nil)
 		})
 		router.Get("/medical-services", func(c fiber.Ctx) error {
 			items, err := svc.ListMedicalServices(c.Context())
-			return httpserver.Reply(c, items, err)
+			return httpserver.Reply(c, httpserver.MapList(items, toMedicalService), err)
 		})
 		router.Get("/medications", func(c fiber.Ctx) error {
 			items, err := svc.ListMedications(c.Context())
-			return httpserver.Reply(c, items, err)
+			return httpserver.Reply(c, httpserver.MapList(items, toMedication), err)
 		})
 	}
 }

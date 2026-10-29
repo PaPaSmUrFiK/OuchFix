@@ -9,7 +9,7 @@ import (
 )
 
 func Run(ctx context.Context, ctr *container.Container) error {
-	srv := httpserver.New(ctr.Config.Server.HTTP(), transport.New(ctr.Service()))
+	srv := httpserver.New(ctr.Config.Server.HTTP(), transport.New(ctr.Service(), ctr.Config.Location))
 
 	return srv.Run(ctx)
 }

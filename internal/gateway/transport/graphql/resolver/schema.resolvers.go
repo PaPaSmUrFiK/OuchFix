@@ -7,11 +7,11 @@ package resolver
 
 import (
 	"context"
+	"net/url"
+	"strconv"
 
-	appointmentdomain "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/domain"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/generated"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/model"
-	notificationdomain "github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
 )
 
 // RegisterPatient is the resolver for the registerPatient field.
@@ -106,42 +106,34 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 
 // Specialties is the resolver for the specialties field.
 func (r *queryResolver) Specialties(ctx context.Context) ([]*model.Specialty, error) {
-	specialties, err := r.catalog.ListSpecialties(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(specialties, specialtyToModel), nil
+	var out []*model.Specialty
+	return out, r.services.Catalog.Get(ctx, "/specialties", nil, &out)
 }
 
 // Doctors is the resolver for the doctors field.
 func (r *queryResolver) Doctors(ctx context.Context, specialtyID *string) ([]*model.Doctor, error) {
-	id, err := parseOptionalID("specialtyId", specialtyID)
-	if err != nil {
-		return nil, err
+	query := url.Values{}
+	if specialtyID != nil {
+		id, err := parseID("specialtyId", *specialtyID)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("specialtyId", id)
 	}
-	doctors, err := r.catalog.ListDoctors(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(doctors, doctorToModel), nil
+	var out []*model.Doctor
+	return out, r.services.Catalog.Get(ctx, "/doctors", query, &out)
 }
 
 // MedicalServices is the resolver for the medicalServices field.
 func (r *queryResolver) MedicalServices(ctx context.Context) ([]*model.MedicalService, error) {
-	services, err := r.catalog.ListMedicalServices(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(services, medicalServiceToModel), nil
+	var out []*model.MedicalService
+	return out, r.services.Catalog.Get(ctx, "/medical-services", nil, &out)
 }
 
 // Medications is the resolver for the medications field.
 func (r *queryResolver) Medications(ctx context.Context) ([]*model.Medication, error) {
-	medications, err := r.catalog.ListMedications(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(medications, medicationToModel), nil
+	var out []*model.Medication
+	return out, r.services.Catalog.Get(ctx, "/medications", nil, &out)
 }
 
 // FreeSlots is the resolver for the freeSlots field.
@@ -150,11 +142,8 @@ func (r *queryResolver) FreeSlots(ctx context.Context, doctorID string, date str
 	if err != nil {
 		return nil, err
 	}
-	slots, err := r.appointments.FreeSlots(ctx, id, date)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(slots, r.slotToModel), nil
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Get(ctx, "/doctors/"+id+"/free-slots", url.Values{"date": {date}}, &out)
 }
 
 // Appointment is the resolver for the appointment field.
@@ -163,48 +152,49 @@ func (r *queryResolver) Appointment(ctx context.Context, id string) (*model.Appo
 	if err != nil {
 		return nil, err
 	}
-	appointment, err := r.appointments.GetAppointment(ctx, appointmentID)
-	if err != nil {
+	var out model.Appointment
+	if err := r.services.Appointment.Get(ctx, "/appointments/"+appointmentID, nil, &out); err != nil {
 		return nil, err
 	}
-	return r.appointmentToModel(appointment), nil
+	return &out, nil
 }
 
 // MyAppointments is the resolver for the myAppointments field.
 func (r *queryResolver) MyAppointments(ctx context.Context, status *model.AppointmentStatus) ([]*model.Appointment, error) {
 	// ВРЕМЕННО до ЛР5: пользователь из конфига вместо JWT.
-	patient, err := r.catalog.GetPatientByUserID(ctx, r.currentUserID)
-	if err != nil {
+	var patient struct {
+		ID string `json:"id"`
+	}
+	if err := r.services.Catalog.Get(ctx, "/patients/by-user/"+strconv.FormatInt(r.currentUserID, 10), nil, &patient); err != nil {
 		return nil, err
 	}
-	appointments, err := r.appointments.ListPatientAppointments(ctx, patient.ID, fromEnum[appointmentdomain.Status](status))
-	if err != nil {
-		return nil, err
-	}
-	return mapList(appointments, r.appointmentToModel), nil
+	query := url.Values{}
+	optionalQuery(query, "status", status)
+	var out []*model.Appointment
+	return out, r.services.Appointment.Get(ctx, "/patients/"+patient.ID+"/appointments", query, &out)
 }
 
 // Payments is the resolver for the payments field.
 func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*model.Payment, error) {
-	id, err := parseOptionalID("patientId", patientID)
-	if err != nil {
-		return nil, err
+	query := url.Values{}
+	if patientID != nil {
+		id, err := parseID("patientId", *patientID)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("patientId", id)
 	}
-	payments, err := r.payments.ListPayments(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapList(payments, r.paymentToModel), nil
+	var out []*model.Payment
+	return out, r.services.Payment.Get(ctx, "/payments", query, &out)
 }
 
 // MyNotifications is the resolver for the myNotifications field.
 func (r *queryResolver) MyNotifications(ctx context.Context, status *model.NotificationStatus) ([]*model.Notification, error) {
 	// ВРЕМЕННО до ЛР5: пользователь из конфига вместо JWT.
-	notifications, err := r.notifications.ListUserNotifications(ctx, r.currentUserID, fromEnum[notificationdomain.Status](status))
-	if err != nil {
-		return nil, err
-	}
-	return mapList(notifications, r.notificationToModel), nil
+	query := url.Values{}
+	optionalQuery(query, "status", status)
+	var out []*model.Notification
+	return out, r.services.Notification.Get(ctx, "/users/"+strconv.FormatInt(r.currentUserID, 10)+"/notifications", query, &out)
 }
 
 // Appointments is the resolver for the appointments field.

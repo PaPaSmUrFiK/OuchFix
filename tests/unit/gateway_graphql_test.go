@@ -8,84 +8,41 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
-	"time"
 
-	appointmentdomain "github.com/PaPaSmUrFiK/OuchFix/internal/appointment/domain"
-	catalogdomain "github.com/PaPaSmUrFiK/OuchFix/internal/catalog/domain"
 	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/resolver"
-	notificationdomain "github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
-	paymentdomain "github.com/PaPaSmUrFiK/OuchFix/internal/payment/domain"
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
 
-type fakeGatewayServices struct {
-	gotSpecialtyID   *int64
-	gotPatientID     int64
-	gotApptStatus    *appointmentdomain.Status
-	gotUserID        int64
-	gotNotifStatus   *notificationdomain.Status
-	appointmentCalls int
+// fakeProxy — сервис за прокси gateway: отдаёт готовый JSON по пути и
+// запоминает, какие запросы пришли.
+type fakeProxy struct {
+	responses map[string]string
+	errs      map[string]error
+	calls     []string
 }
 
-func (f *fakeGatewayServices) ListSpecialties(context.Context) ([]catalogdomain.Specialty, error) {
-	return []catalogdomain.Specialty{{ID: 1, Name: "Терапия"}}, nil
-}
-
-func (f *fakeGatewayServices) ListDoctors(_ context.Context, specialtyID *int64) ([]catalogdomain.Doctor, error) {
-	f.gotSpecialtyID = specialtyID
-	return []catalogdomain.Doctor{{ID: 2, FullName: "Иванов", Specialty: catalogdomain.Specialty{ID: 1, Name: "Терапия"}}}, nil
-}
-
-func (f *fakeGatewayServices) GetPatientByUserID(_ context.Context, userID int64) (*catalogdomain.Patient, error) {
-	if userID != 5 {
-		return nil, fmt.Errorf("patient by user %d: %w", userID, pkgerrors.ErrNotFound)
+func (f *fakeProxy) Get(_ context.Context, path string, query url.Values, out any) error {
+	call := path
+	if len(query) > 0 {
+		call += "?" + query.Encode()
 	}
-	return &catalogdomain.Patient{ID: 1, UserID: 5}, nil
-}
-
-func (f *fakeGatewayServices) ListMedicalServices(context.Context) ([]catalogdomain.MedicalService, error) {
-	return nil, nil
-}
-
-func (f *fakeGatewayServices) ListMedications(context.Context) ([]catalogdomain.Medication, error) {
-	return nil, nil
-}
-
-func (f *fakeGatewayServices) FreeSlots(_ context.Context, doctorID int64, _ string) ([]appointmentdomain.Slot, error) {
-	start := time.Date(2026, 11, 2, 6, 0, 0, 0, time.UTC)
-	return []appointmentdomain.Slot{{ID: 1, DoctorID: doctorID, StartsAt: start, EndsAt: start.Add(30 * time.Minute), Status: appointmentdomain.SlotFree}}, nil
-}
-
-func (f *fakeGatewayServices) GetAppointment(_ context.Context, id int64) (*appointmentdomain.Appointment, error) {
-	f.appointmentCalls++
-	if id != 1 {
-		return nil, fmt.Errorf("appointment %d: %w", id, pkgerrors.ErrNotFound)
+	f.calls = append(f.calls, call)
+	if err, ok := f.errs[path]; ok {
+		return err
 	}
-	return &appointmentdomain.Appointment{
-		ID: 1, PatientID: 1, DoctorID: 2,
-		Status: appointmentdomain.StatusNoShow, VisitType: appointmentdomain.VisitWalkIn,
-		Diagnoses: []appointmentdomain.Diagnosis{{ID: 1, Description: "ОРВИ"}},
-	}, nil
-}
-
-func (f *fakeGatewayServices) ListPatientAppointments(_ context.Context, patientID int64, status *appointmentdomain.Status) ([]appointmentdomain.Appointment, error) {
-	f.gotPatientID, f.gotApptStatus = patientID, status
-	return nil, nil
-}
-
-func (f *fakeGatewayServices) ListPayments(_ context.Context, patientID *int64) ([]paymentdomain.Payment, error) {
-	if patientID != nil && *patientID == 500 {
-		return nil, errors.New("pq: connection refused to 10.0.0.1")
+	body, ok := f.responses[path]
+	if !ok {
+		return fmt.Errorf("%s: %w", path, pkgerrors.ErrNotFound)
 	}
-	return nil, nil
+	return json.Unmarshal([]byte(body), out)
 }
 
-func (f *fakeGatewayServices) ListUserNotifications(_ context.Context, userID int64, status *notificationdomain.Status) ([]notificationdomain.Notification, error) {
-	f.gotUserID, f.gotNotifStatus = userID, status
-	return nil, nil
+type fakeGateway struct {
+	catalog, appointment, payment, notification *fakeProxy
 }
 
 type gqlResponse struct {
@@ -111,14 +68,27 @@ func doGraphQL(t *testing.T, h http.Handler, query string) gqlResponse {
 	return resp
 }
 
-func newGatewayHandler(t *testing.T, userID int64) (http.Handler, *fakeGatewayServices) {
+func newGatewayHandler(t *testing.T, userID int64) (http.Handler, *fakeGateway) {
 	t.Helper()
-	loc, err := time.LoadLocation("Europe/Minsk")
-	if err != nil {
-		t.Fatal(err)
+	f := &fakeGateway{
+		catalog: &fakeProxy{responses: map[string]string{
+			"/doctors":            `[{"id":"2","fullName":"Иванов","office":null,"specialty":{"id":"1","name":"Терапия"}}]`,
+			"/patients/by-user/5": `{"id":"1"}`,
+		}},
+		appointment: &fakeProxy{responses: map[string]string{
+			"/appointments/1":          `{"id":"1","patientId":"1","doctorId":"2","status":"NO_SHOW","visitType":"WALK_IN","diagnoses":[{"id":"1","description":"ОРВИ"}],"prescriptions":[]}`,
+			"/doctors/2/free-slots":    `[{"id":"1","doctorId":"2","startsAt":"2026-11-02T09:00:00+03:00","endsAt":"2026-11-02T09:30:00+03:00","status":"FREE"}]`,
+			"/patients/1/appointments": `[]`,
+		}},
+		payment:      &fakeProxy{errs: map[string]error{"/payments": errors.New("pq: connection refused to 10.0.0.1")}},
+		notification: &fakeProxy{responses: map[string]string{"/users/5/notifications": `[]`}},
 	}
-	f := &fakeGatewayServices{}
-	return gql.NewHandler(resolver.New(f, f, f, f, loc, userID)), f
+	return gql.NewHandler(resolver.New(resolver.Services{
+		Catalog:      f.catalog,
+		Appointment:  f.appointment,
+		Payment:      f.payment,
+		Notification: f.notification,
+	}, userID)), f
 }
 
 func TestGraphQLDoctorsWithSpecialty(t *testing.T) {
@@ -127,8 +97,8 @@ func TestGraphQLDoctorsWithSpecialty(t *testing.T) {
 	if len(resp.Errors) != 0 {
 		t.Fatalf("errors: %+v", resp.Errors)
 	}
-	if f.gotSpecialtyID == nil || *f.gotSpecialtyID != 1 {
-		t.Fatalf("specialtyId not passed: %v", f.gotSpecialtyID)
+	if len(f.catalog.calls) != 1 || f.catalog.calls[0] != "/doctors?specialtyId=1" {
+		t.Fatalf("catalog calls = %v", f.catalog.calls)
 	}
 	if got := string(resp.Data["doctors"]); !strings.Contains(got, `"specialty":{"id":"1","name":"Терапия"}`) {
 		t.Fatalf("doctors = %s", got)
@@ -141,12 +111,13 @@ func TestGraphQLInvalidIDIsNotPassedToService(t *testing.T) {
 	if len(resp.Errors) != 1 {
 		t.Fatalf("want 1 error, got %+v", resp.Errors)
 	}
-	if f.appointmentCalls != 0 {
+	if len(f.appointment.calls) != 0 {
 		t.Fatal("service must not be called with invalid id")
 	}
 }
 
-func TestGraphQLEnumsAndTimeFormat(t *testing.T) {
+// Gateway ничего не преобразует: JSON сервиса уходит клиенту как есть.
+func TestGraphQLProxiesServiceJSON(t *testing.T) {
 	h, _ := newGatewayHandler(t, 5)
 	resp := doGraphQL(t, h, `{ appointment(id: "1") { status visitType diagnoses { description } } freeSlots(doctorId: "2", date: "2026-11-02") { startsAt status } }`)
 	if len(resp.Errors) != 0 {
@@ -166,11 +137,11 @@ func TestGraphQLMyQueriesUseConfiguredUser(t *testing.T) {
 	if len(resp.Errors) != 0 {
 		t.Fatalf("errors: %+v", resp.Errors)
 	}
-	if f.gotPatientID != 1 || f.gotApptStatus == nil || *f.gotApptStatus != appointmentdomain.StatusNoShow {
-		t.Fatalf("myAppointments: patient=%d status=%v", f.gotPatientID, f.gotApptStatus)
+	if got := f.appointment.calls; len(got) != 1 || got[0] != "/patients/1/appointments?status=NO_SHOW" {
+		t.Fatalf("myAppointments calls = %v", got)
 	}
-	if f.gotUserID != 5 || f.gotNotifStatus == nil || *f.gotNotifStatus != notificationdomain.StatusRead {
-		t.Fatalf("myNotifications: user=%d status=%v", f.gotUserID, f.gotNotifStatus)
+	if got := f.notification.calls; len(got) != 1 || got[0] != "/users/5/notifications?status=READ" {
+		t.Fatalf("myNotifications calls = %v", got)
 	}
 }
 
@@ -196,7 +167,7 @@ func TestGraphQLErrorCodes(t *testing.T) {
 		{`{ appointment(id: "99") { id } }`, "NOT_FOUND"},
 		{`{ appointment(id: "abc") { id } }`, "BAD_USER_INPUT"},
 		{`{ me { id } }`, "NOT_IMPLEMENTED"},
-		{`{ payments(patientId: "500") { id } }`, "INTERNAL"},
+		{`{ payments { id } }`, "INTERNAL"},
 		{`{ unknownField }`, "GRAPHQL_VALIDATION_FAILED"},
 	} {
 		resp := doGraphQL(t, h, tc.query)
