@@ -41,3 +41,11 @@ type Medication struct {
 	Unit     string
 	StockQty float64
 }
+
+// Dispense — выдача препарата пациенту со склада.
+type Dispense struct {
+	MedicationID  int64
+	PatientID     int64
+	AppointmentID *int64
+	Quantity      float64
+}

@@ -260,3 +260,23 @@ func TestGraphQLAppointmentQueriesProxy(t *testing.T) {
 		t.Fatalf("missing calls %v, got %v", want, f.appointment.calls)
 	}
 }
+
+func TestGraphQLMedicationMutationsProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	med := `{"id":"1","name":"Парацетамол","form":null,"unit":"шт","stockQty":5}`
+	f.catalog.responses["/medications"] = med
+	f.catalog.responses["/medications/dispense"] = med
+	q := `mutation {
+	  a: upsertMedication(name: "Парацетамол", unit: "шт", stockQty: 5) { id }
+	  b: dispenseMedication(input: {medicationId: "1", patientId: "2", quantity: 1.5}) { stockQty } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := []string{
+		`POST /medications {"form":null,"name":"Парацетамол","stockQty":5,"unit":"шт"}`,
+		`POST /medications/dispense {"medicationId":"1","patientId":"2","quantity":1.5}`,
+	}
+	if len(f.catalog.calls) != 2 || f.catalog.calls[0] != want[0] || f.catalog.calls[1] != want[1] {
+		t.Fatalf("calls = %q", f.catalog.calls)
+	}
+}

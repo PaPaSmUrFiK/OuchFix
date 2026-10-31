@@ -112,12 +112,21 @@ func (r *mutationResolver) AddPrescription(ctx context.Context, input model.AddP
 
 // UpsertMedication is the resolver for the upsertMedication field.
 func (r *mutationResolver) UpsertMedication(ctx context.Context, name string, form *string, unit string, stockQty float64) (*model.Medication, error) {
-	return nil, notImplemented("upsertMedication", "ЛР4")
+	body := map[string]any{"name": name, "form": form, "unit": unit, "stockQty": stockQty}
+	var out model.Medication
+	if err := r.services.Catalog.Post(ctx, "/medications", body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // DispenseMedication is the resolver for the dispenseMedication field.
 func (r *mutationResolver) DispenseMedication(ctx context.Context, input model.DispenseMedicationInput) (*model.Medication, error) {
-	return nil, notImplemented("dispenseMedication", "ЛР4")
+	var out model.Medication
+	if err := r.services.Catalog.Post(ctx, "/medications/dispense", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // CreatePayment is the resolver for the createPayment field.
