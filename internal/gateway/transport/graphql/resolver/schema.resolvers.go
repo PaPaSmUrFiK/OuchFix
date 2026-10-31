@@ -140,7 +140,17 @@ func (r *mutationResolver) CreatePayment(ctx context.Context, input model.Create
 
 // MarkNotificationRead is the resolver for the markNotificationRead field.
 func (r *mutationResolver) MarkNotificationRead(ctx context.Context, id string) (*model.Notification, error) {
-	return nil, notImplemented("markNotificationRead", "ЛР4")
+	// ВРЕМЕННО до ЛР5: пользователь из конфига вместо JWT.
+	nid, err := parseID("id", id)
+	if err != nil {
+		return nil, err
+	}
+	path := "/users/" + strconv.FormatInt(r.currentUserID, 10) + "/notifications/" + nid + "/read"
+	var out model.Notification
+	if err := r.services.Notification.Post(ctx, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Me is the resolver for the me field.

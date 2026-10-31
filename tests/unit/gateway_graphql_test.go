@@ -302,3 +302,17 @@ func TestGraphQLPaymentProxy(t *testing.T) {
 		t.Fatalf("calls = %q", f.payment.calls)
 	}
 }
+
+func TestGraphQLMarkNotificationReadUsesCurrentUser(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.notification.responses["/users/5/notifications/3/read"] = `{"id":"3","title":"t","body":"b","status":"READ","channel":"PUSH"}`
+	if resp := doGraphQL(t, h, `mutation { markNotificationRead(id: "3") { id } }`); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	if resp := doGraphQL(t, h, `mutation { markNotificationRead(id: "x") { id } }`); len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != "BAD_USER_INPUT" {
+		t.Fatalf("bad id: %+v", resp.Errors)
+	}
+	if got := f.notification.calls; len(got) != 1 || got[0] != "POST /users/5/notifications/3/read null" {
+		t.Fatalf("calls = %q", got)
+	}
+}

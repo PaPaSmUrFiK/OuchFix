@@ -69,6 +69,25 @@ func TestPaymentsFilterAndValidation(t *testing.T) {
 
 type fakeNotificationRepo struct {
 	calls int
+	items map[int64]notificationdomain.Notification
+}
+
+func (f *fakeNotificationRepo) MarkRead(_ context.Context, userID, id int64) (*notificationdomain.Notification, error) {
+	n, ok := f.items[id]
+	if !ok || n.UserID != userID || n.Status == notificationdomain.StatusFailed {
+		return nil, pkgerrors.ErrNotFound
+	}
+	n.Status = notificationdomain.StatusRead
+	f.items[id] = n
+	return &n, nil
+}
+
+func (f *fakeNotificationRepo) Get(_ context.Context, userID, id int64) (*notificationdomain.Notification, error) {
+	n, ok := f.items[id]
+	if !ok || n.UserID != userID {
+		return nil, pkgerrors.ErrNotFound
+	}
+	return &n, nil
 }
 
 func (f *fakeNotificationRepo) ListByUser(context.Context, int64, *notificationdomain.Status) ([]notificationdomain.Notification, error) {
@@ -97,5 +116,31 @@ func TestNotificationsValidation(t *testing.T) {
 	}
 	if repo.calls != 1 {
 		t.Fatalf("repository must not be called on invalid input, calls %d", repo.calls)
+	}
+}
+
+func TestMarkNotificationRead(t *testing.T) {
+	repo := &fakeNotificationRepo{items: map[int64]notificationdomain.Notification{
+		1: {ID: 1, UserID: 5, Status: notificationdomain.StatusSent},
+		4: {ID: 4, UserID: 6, Status: notificationdomain.StatusFailed},
+		7: {ID: 7, UserID: 5, Status: notificationdomain.StatusFailed},
+	}}
+	svc := notificationsvc.NewNotificationService(repo, iam.NewStub())
+	ctx := context.Background()
+
+	for i := 0; i < 2; i++ { // повтор идемпотентен
+		n, err := svc.MarkRead(ctx, 5, 1)
+		if err != nil || n.Status != notificationdomain.StatusRead {
+			t.Fatalf("try %d: %v %+v", i, err, n)
+		}
+	}
+	if _, err := svc.MarkRead(ctx, 5, 4); !errors.Is(err, pkgerrors.ErrNotFound) {
+		t.Fatalf("foreign notification: %v", err)
+	}
+	if _, err := svc.MarkRead(ctx, 5, 7); !errors.Is(err, pkgerrors.ErrFailedPrecondition) {
+		t.Fatalf("failed notification: %v", err)
+	}
+	if _, err := svc.MarkRead(ctx, 5, 0); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
+		t.Fatalf("bad id: %v", err)
 	}
 }
