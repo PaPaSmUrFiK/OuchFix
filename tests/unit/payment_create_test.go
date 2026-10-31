@@ -18,13 +18,13 @@ func TestCreatePayment(t *testing.T) {
 	svc := paymentsvc.NewPaymentService(repo, catalog.NewStub(), appointment.NewStub(), minsk(t))
 	ctx := context.Background()
 	// Приём 1 из заглушки: пациент 1, услуга 1 (35.00), проведён.
-	ok := paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, Amount: 35, Method: paymentdomain.MethodCard}
+	ok := paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, AmountKopecks: 3500, Method: paymentdomain.MethodCard}
 
 	p, err := svc.CreatePayment(ctx, ok)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Status != paymentdomain.StatusPaid || p.PaidAt == nil || p.ServiceID == nil || *p.ServiceID != 1 || p.Amount != 35 {
+	if p.Status != paymentdomain.StatusPaid || p.PaidAt == nil || p.ServiceID == nil || *p.ServiceID != 1 || p.AmountKopecks != 3500 {
 		t.Fatalf("payment = %+v", p)
 	}
 
@@ -39,13 +39,14 @@ func TestCreatePayment(t *testing.T) {
 		in   paymentsvc.CreateInput
 		want error
 	}{
-		"not completed":  {paymentsvc.CreateInput{AppointmentID: 2, PatientID: 1, Amount: 55, Method: "cash"}, pkgerrors.ErrFailedPrecondition},
-		"other patient":  {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 2, Amount: 35, Method: "cash"}, pkgerrors.ErrInvalidArgument},
-		"wrong amount":   {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, Amount: 34.99, Method: "cash"}, pkgerrors.ErrInvalidArgument},
-		"wrong service":  {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, ServiceID: &wrongSvc, Amount: 35, Method: "cash"}, pkgerrors.ErrInvalidArgument},
-		"zero amount":    {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, Amount: 0, Method: "cash"}, pkgerrors.ErrInvalidArgument},
-		"bad method":     {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, Amount: 35, Method: "barter"}, pkgerrors.ErrInvalidArgument},
-		"no appointment": {paymentsvc.CreateInput{AppointmentID: 99, PatientID: 1, Amount: 35, Method: "cash"}, pkgerrors.ErrNotFound},
+		"not completed":   {paymentsvc.CreateInput{AppointmentID: 2, PatientID: 1, AmountKopecks: 5500, Method: "cash"}, pkgerrors.ErrFailedPrecondition},
+		"other patient":   {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 2, AmountKopecks: 3500, Method: "cash"}, pkgerrors.ErrInvalidArgument},
+		"wrong amount":    {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, AmountKopecks: 3499, Method: "cash"}, pkgerrors.ErrInvalidArgument},
+		"wrong service":   {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, ServiceID: &wrongSvc, AmountKopecks: 3500, Method: "cash"}, pkgerrors.ErrInvalidArgument},
+		"negative amount": {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, AmountKopecks: -3500, Method: "cash"}, pkgerrors.ErrInvalidArgument},
+		"zero amount":     {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, AmountKopecks: 0, Method: "cash"}, pkgerrors.ErrInvalidArgument},
+		"bad method":      {paymentsvc.CreateInput{AppointmentID: 1, PatientID: 1, AmountKopecks: 3500, Method: "barter"}, pkgerrors.ErrInvalidArgument},
+		"no appointment":  {paymentsvc.CreateInput{AppointmentID: 99, PatientID: 1, AmountKopecks: 3500, Method: "cash"}, pkgerrors.ErrNotFound},
 	} {
 		if _, err := svc.CreatePayment(ctx, tc.in); !errors.Is(err, tc.want) {
 			t.Fatalf("%s: want %v, got %v", name, tc.want, err)

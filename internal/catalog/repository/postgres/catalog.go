@@ -90,7 +90,7 @@ func (r *CatalogRepository) GetPatientByUserID(ctx context.Context, userID int64
 	return &patient, nil
 }
 
-const medicalServiceSelect = `SELECT id, name, price::FLOAT8 AS price, duration_min FROM catalog.medical_service`
+const medicalServiceSelect = `SELECT id, name, price_kopecks, duration_min FROM catalog.medical_service`
 
 func (r *CatalogRepository) ListMedicalServices(ctx context.Context) ([]domain.MedicalService, error) {
 	const query = medicalServiceSelect + ` ORDER BY name, id`

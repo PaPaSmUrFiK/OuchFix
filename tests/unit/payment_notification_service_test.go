@@ -38,7 +38,7 @@ func (f *fakePaymentRepo) Insert(_ context.Context, p paymentdomain.Payment) (*p
 
 func (f *fakePaymentRepo) Summary(_ context.Context, from, to time.Time) (*paymentdomain.Summary, error) {
 	f.sumFrom, f.sumTo = from, to
-	return &paymentdomain.Summary{Count: 1, Total: 35}, nil
+	return &paymentdomain.Summary{Count: 1, TotalKopecks: 3500}, nil
 }
 
 func (f *fakePaymentRepo) List(_ context.Context, filter paymentdomain.Filter) ([]paymentdomain.Payment, error) {

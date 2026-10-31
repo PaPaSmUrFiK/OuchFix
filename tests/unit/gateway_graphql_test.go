@@ -233,7 +233,9 @@ func TestGraphQLMutationsProxyInput(t *testing.T) {
 
 	for _, tc := range []struct{ query, code string }{
 		{`mutation { cancelAppointment(id: "2") { id } }`, "FAILED_PRECONDITION"},
-		{`mutation { createSlots(input: {doctorId: "1", startsAt: "a", endsAt: "b"}) { id } }`, "CONFLICT"},
+		{`mutation { createSlots(input: {doctorId: "1", startsAt: "2026-11-20T09:00:00+03:00", endsAt: "2026-11-20T10:00:00+03:00"}) { id } }`, "CONFLICT"},
+		{`mutation { createSlots(input: {doctorId: "1", startsAt: "20.11.2026 09:00", endsAt: "2026-11-20T10:00:00+03:00"}) { id } }`, "BAD_USER_INPUT"},
+		{`{ appointments(date: "2026-13-01") { id } }`, "BAD_USER_INPUT"},
 		{`mutation { cancelAppointment(id: "x") { id } }`, "BAD_USER_INPUT"},
 	} {
 		resp := doGraphQL(t, h, tc.query)
@@ -291,17 +293,17 @@ func TestGraphQLPaymentProxy(t *testing.T) {
 	h, f := newGatewayHandler(t, 5)
 	f.payment.errs = nil
 	f.payment.responses = map[string]string{}
-	f.payment.responses["/payments"] = `{"id":"4","appointmentId":"1","patientId":"1","serviceId":"1","amount":35,"method":"CARD","status":"PAID","paidAt":null}`
-	f.payment.responses["/payments/summary"] = `{"count":2,"total":70}`
-	q := `mutation { createPayment(input: {appointmentId: "1", patientId: "1", amount: 35, method: CARD}) { id status } }`
+	f.payment.responses["/payments"] = `{"id":"4","appointmentId":"1","patientId":"1","serviceId":"1","amountKopecks":3500,"method":"CARD","status":"PAID","paidAt":null}`
+	f.payment.responses["/payments/summary"] = `{"count":2,"totalKopecks":7000}`
+	q := `mutation { createPayment(input: {appointmentId: "1", patientId: "1", amountKopecks: 3500, method: CARD}) { id status } }`
 	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
 		t.Fatalf("errors: %+v", resp.Errors)
 	}
-	if resp := doGraphQL(t, h, `{ paymentSummary(from: "2026-11-01", to: "2026-11-30") { count total } }`); len(resp.Errors) != 0 {
+	if resp := doGraphQL(t, h, `{ paymentSummary(from: "2026-11-01", to: "2026-11-30") { count totalKopecks } }`); len(resp.Errors) != 0 {
 		t.Fatalf("errors: %+v", resp.Errors)
 	}
 	want := []string{
-		`POST /payments {"appointmentId":"1","patientId":"1","amount":35,"method":"CARD"}`,
+		`POST /payments {"appointmentId":"1","patientId":"1","amountKopecks":3500,"method":"CARD"}`,
 		`/payments/summary?from=2026-11-01&to=2026-11-30`,
 	}
 	if len(f.payment.calls) != 2 || f.payment.calls[0] != want[0] || f.payment.calls[1] != want[1] {

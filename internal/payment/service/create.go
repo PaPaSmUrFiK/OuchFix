@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/payment/domain"
@@ -21,7 +20,7 @@ type CreateInput struct {
 	AppointmentID int64
 	PatientID     int64
 	ServiceID     *int64
-	Amount        float64
+	AmountKopecks int64
 	Method        domain.Method
 }
 
@@ -42,8 +41,8 @@ func (s *PaymentService) CreatePayment(ctx context.Context, in CreateInput) (*do
 	if !in.Method.Valid() {
 		return nil, fmt.Errorf("%w: неизвестный способ оплаты %q", pkgerrors.ErrInvalidArgument, in.Method)
 	}
-	if !(in.Amount > 0) || math.IsInf(in.Amount, 0) {
-		return nil, fmt.Errorf("%w: amount должна быть больше нуля", pkgerrors.ErrInvalidArgument)
+	if in.AmountKopecks <= 0 {
+		return nil, fmt.Errorf("%w: amountKopecks должна быть больше нуля", pkgerrors.ErrInvalidArgument)
 	}
 
 	appt, err := s.appointments.GetAppointment(ctx, in.AppointmentID)
@@ -66,8 +65,8 @@ func (s *PaymentService) CreatePayment(ctx context.Context, in CreateInput) (*do
 	if err != nil {
 		return nil, fmt.Errorf("medical service %d: %w", appt.ServiceID, err)
 	}
-	if toCents(in.Amount) != toCents(svc.Price) {
-		return nil, fmt.Errorf("%w: сумма %.2f не совпадает с ценой услуги %.2f", pkgerrors.ErrInvalidArgument, in.Amount, svc.Price)
+	if in.AmountKopecks != svc.PriceKopecks {
+		return nil, fmt.Errorf("%w: сумма %d коп. не совпадает с ценой услуги %d коп.", pkgerrors.ErrInvalidArgument, in.AmountKopecks, svc.PriceKopecks)
 	}
 
 	paid, err := s.repo.HasPaid(ctx, in.AppointmentID)
@@ -84,7 +83,7 @@ func (s *PaymentService) CreatePayment(ctx context.Context, in CreateInput) (*do
 		AppointmentID: in.AppointmentID,
 		PatientID:     in.PatientID,
 		ServiceID:     &serviceID,
-		Amount:        svc.Price,
+		AmountKopecks: svc.PriceKopecks,
 		Method:        in.Method,
 		Status:        domain.StatusPaid,
 		PaidAt:        &now,
@@ -117,8 +116,4 @@ func (s *PaymentService) parseDay(name, raw string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("%w: %s должна быть в формате YYYY-MM-DD, получено %q", pkgerrors.ErrInvalidArgument, name, raw)
 	}
 	return day, nil
-}
-
-func toCents(v float64) int64 {
-	return int64(math.Round(v * 100))
 }

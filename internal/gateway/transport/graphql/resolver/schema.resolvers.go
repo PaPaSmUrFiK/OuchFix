@@ -12,6 +12,7 @@ import (
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/generated"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/model"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar"
 )
 
 // RegisterPatient is the resolver for the registerPatient field.
@@ -191,13 +192,13 @@ func (r *queryResolver) Medications(ctx context.Context) ([]*model.Medication, e
 }
 
 // FreeSlots is the resolver for the freeSlots field.
-func (r *queryResolver) FreeSlots(ctx context.Context, doctorID string, date string) ([]*model.ScheduleSlot, error) {
+func (r *queryResolver) FreeSlots(ctx context.Context, doctorID string, date scalar.Date) ([]*model.ScheduleSlot, error) {
 	id, err := parseID("doctorId", doctorID)
 	if err != nil {
 		return nil, err
 	}
 	var out []*model.ScheduleSlot
-	return out, r.services.Appointment.Get(ctx, "/doctors/"+id+"/free-slots", url.Values{"date": {date}}, &out)
+	return out, r.services.Appointment.Get(ctx, "/doctors/"+id+"/free-slots", url.Values{"date": {string(date)}}, &out)
 }
 
 // Appointment is the resolver for the appointment field.
@@ -229,7 +230,7 @@ func (r *queryResolver) MyAppointments(ctx context.Context, status *model.Appoin
 }
 
 // Payments is the resolver for the payments field.
-func (r *queryResolver) Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *string, to *string) ([]*model.Payment, error) {
+func (r *queryResolver) Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *scalar.Date, to *scalar.Date) ([]*model.Payment, error) {
 	query := url.Values{}
 	if patientID != nil {
 		id, err := parseID("patientId", *patientID)
@@ -246,9 +247,9 @@ func (r *queryResolver) Payments(ctx context.Context, patientID *string, status 
 }
 
 // PaymentSummary is the resolver for the paymentSummary field.
-func (r *queryResolver) PaymentSummary(ctx context.Context, from string, to string) (*model.PaymentSummary, error) {
+func (r *queryResolver) PaymentSummary(ctx context.Context, from scalar.Date, to scalar.Date) (*model.PaymentSummary, error) {
 	var out model.PaymentSummary
-	if err := r.services.Payment.Get(ctx, "/payments/summary", url.Values{"from": {from}, "to": {to}}, &out); err != nil {
+	if err := r.services.Payment.Get(ctx, "/payments/summary", url.Values{"from": {string(from)}, "to": {string(to)}}, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -264,7 +265,7 @@ func (r *queryResolver) MyNotifications(ctx context.Context, status *model.Notif
 }
 
 // Appointments is the resolver for the appointments field.
-func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error) {
+func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *scalar.Date, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error) {
 	query := url.Values{}
 	if doctorID != nil {
 		id, err := parseID("doctorId", *doctorID)
@@ -281,14 +282,14 @@ func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date
 }
 
 // DoctorLoad is the resolver for the doctorLoad field.
-func (r *queryResolver) DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error) {
+func (r *queryResolver) DoctorLoad(ctx context.Context, from scalar.Date, to scalar.Date) ([]*model.DoctorLoad, error) {
 	var out []*model.DoctorLoad
-	return out, r.services.Appointment.Get(ctx, "/stats/doctor-load", url.Values{"from": {from}, "to": {to}}, &out)
+	return out, r.services.Appointment.Get(ctx, "/stats/doctor-load", url.Values{"from": {string(from)}, "to": {string(to)}}, &out)
 }
 
 // PopularServices is the resolver for the popularServices field.
-func (r *queryResolver) PopularServices(ctx context.Context, from string, to string, limit *int32) ([]*model.ServiceStat, error) {
-	query := url.Values{"from": {from}, "to": {to}}
+func (r *queryResolver) PopularServices(ctx context.Context, from scalar.Date, to scalar.Date, limit *int32) ([]*model.ServiceStat, error) {
+	query := url.Values{"from": {string(from)}, "to": {string(to)}}
 	if limit != nil {
 		query.Set("limit", strconv.Itoa(int(*limit)))
 	}

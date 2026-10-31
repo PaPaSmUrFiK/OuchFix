@@ -48,7 +48,7 @@ func New(svc *service.PaymentService, loc *time.Location) func(fiber.Router) {
 			if err != nil {
 				return httpserver.WriteError(c, err)
 			}
-			return httpserver.Reply(c, summaryResponse{Count: sum.Count, Total: sum.Total}, nil)
+			return httpserver.Reply(c, summaryResponse{Count: sum.Count, TotalKopecks: sum.TotalKopecks}, nil)
 		})
 	}
 }

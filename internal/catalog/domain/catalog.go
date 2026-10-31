@@ -28,10 +28,10 @@ type Doctor struct {
 }
 
 type MedicalService struct {
-	ID          int64
-	Name        string
-	Price       float64
-	DurationMin *int32
+	ID           int64
+	Name         string
+	PriceKopecks int64
+	DurationMin  *int32
 }
 
 type Medication struct {

@@ -22,7 +22,7 @@ func NewPaymentRepository(db *sqlx.DB) *PaymentRepository {
 // List возвращает платежи по фильтру; пустой фильтр — все платежи.
 func (r *PaymentRepository) List(ctx context.Context, f domain.Filter) ([]domain.Payment, error) {
 	const query = `
-		SELECT id, appointment_id, patient_id, service_id, amount::FLOAT8 AS amount,
+		SELECT id, appointment_id, patient_id, service_id, amount_kopecks,
 		       method, status, created_at, paid_at
 		FROM payment.payment
 		WHERE ($1::BIGINT IS NULL OR patient_id = $1)

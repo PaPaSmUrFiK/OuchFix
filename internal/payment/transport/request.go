@@ -13,13 +13,13 @@ type createPaymentRequest struct {
 	AppointmentID string  `json:"appointmentId"`
 	PatientID     string  `json:"patientId"`
 	ServiceID     *string `json:"serviceId"`
-	Amount        float64 `json:"amount"`
+	AmountKopecks int64   `json:"amountKopecks"`
 	Method        string  `json:"method"`
 }
 
 func (r createPaymentRequest) toInput() (service.CreateInput, error) {
 	var (
-		in  = service.CreateInput{Amount: r.Amount, Method: domain.Method(strings.ToLower(r.Method))}
+		in  = service.CreateInput{AmountKopecks: r.AmountKopecks, Method: domain.Method(strings.ToLower(r.Method))}
 		err error
 	)
 	if in.AppointmentID, err = httpserver.ParseID("appointmentId", r.AppointmentID); err != nil {

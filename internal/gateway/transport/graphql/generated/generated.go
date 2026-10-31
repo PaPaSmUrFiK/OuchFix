@@ -13,6 +13,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/model"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -74,10 +75,10 @@ type ComplexityRoot struct {
 	}
 
 	MedicalService struct {
-		DurationMin func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Price       func(childComplexity int) int
+		DurationMin  func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Name         func(childComplexity int) int
+		PriceKopecks func(childComplexity int) int
 	}
 
 	Medication struct {
@@ -128,7 +129,7 @@ type ComplexityRoot struct {
 	}
 
 	Payment struct {
-		Amount        func(childComplexity int) int
+		AmountKopecks func(childComplexity int) int
 		AppointmentID func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Method        func(childComplexity int) int
@@ -139,8 +140,8 @@ type ComplexityRoot struct {
 	}
 
 	PaymentSummary struct {
-		Count func(childComplexity int) int
-		Total func(childComplexity int) int
+		Count        func(childComplexity int) int
+		TotalKopecks func(childComplexity int) int
 	}
 
 	Prescription struct {
@@ -151,18 +152,18 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Appointment     func(childComplexity int, id string) int
-		Appointments    func(childComplexity int, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) int
-		DoctorLoad      func(childComplexity int, from string, to string) int
+		Appointments    func(childComplexity int, doctorID *string, date *scalar.Date, status *model.AppointmentStatus, sort *model.AppointmentSort) int
+		DoctorLoad      func(childComplexity int, from scalar.Date, to scalar.Date) int
 		Doctors         func(childComplexity int, specialtyID *string) int
-		FreeSlots       func(childComplexity int, doctorID string, date string) int
+		FreeSlots       func(childComplexity int, doctorID string, date scalar.Date) int
 		Me              func(childComplexity int) int
 		MedicalServices func(childComplexity int) int
 		Medications     func(childComplexity int) int
 		MyAppointments  func(childComplexity int, status *model.AppointmentStatus) int
 		MyNotifications func(childComplexity int, status *model.NotificationStatus) int
-		PaymentSummary  func(childComplexity int, from string, to string) int
-		Payments        func(childComplexity int, patientID *string, status *model.PaymentStatus, from *string, to *string) int
-		PopularServices func(childComplexity int, from string, to string, limit *int32) int
+		PaymentSummary  func(childComplexity int, from scalar.Date, to scalar.Date) int
+		Payments        func(childComplexity int, patientID *string, status *model.PaymentStatus, from *scalar.Date, to *scalar.Date) int
+		PopularServices func(childComplexity int, from scalar.Date, to scalar.Date, limit *int32) int
 		Specialties     func(childComplexity int) int
 	}
 
@@ -229,15 +230,15 @@ type QueryResolver interface {
 	Doctors(ctx context.Context, specialtyID *string) ([]*model.Doctor, error)
 	MedicalServices(ctx context.Context) ([]*model.MedicalService, error)
 	Medications(ctx context.Context) ([]*model.Medication, error)
-	FreeSlots(ctx context.Context, doctorID string, date string) ([]*model.ScheduleSlot, error)
+	FreeSlots(ctx context.Context, doctorID string, date scalar.Date) ([]*model.ScheduleSlot, error)
 	Appointment(ctx context.Context, id string) (*model.Appointment, error)
 	MyAppointments(ctx context.Context, status *model.AppointmentStatus) ([]*model.Appointment, error)
-	Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *string, to *string) ([]*model.Payment, error)
-	PaymentSummary(ctx context.Context, from string, to string) (*model.PaymentSummary, error)
+	Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *scalar.Date, to *scalar.Date) ([]*model.Payment, error)
+	PaymentSummary(ctx context.Context, from scalar.Date, to scalar.Date) (*model.PaymentSummary, error)
 	MyNotifications(ctx context.Context, status *model.NotificationStatus) ([]*model.Notification, error)
-	Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error)
-	DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error)
-	PopularServices(ctx context.Context, from string, to string, limit *int32) ([]*model.ServiceStat, error)
+	Appointments(ctx context.Context, doctorID *string, date *scalar.Date, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error)
+	DoctorLoad(ctx context.Context, from scalar.Date, to scalar.Date) ([]*model.DoctorLoad, error)
+	PopularServices(ctx context.Context, from scalar.Date, to scalar.Date, limit *int32) ([]*model.ServiceStat, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -419,12 +420,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MedicalService.Name(childComplexity), true
-	case "MedicalService.price":
-		if e.ComplexityRoot.MedicalService.Price == nil {
+	case "MedicalService.priceKopecks":
+		if e.ComplexityRoot.MedicalService.PriceKopecks == nil {
 			break
 		}
 
-		return e.ComplexityRoot.MedicalService.Price(childComplexity), true
+		return e.ComplexityRoot.MedicalService.PriceKopecks(childComplexity), true
 
 	case "Medication.form":
 		if e.ComplexityRoot.Medication.Form == nil {
@@ -725,12 +726,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Patient.Phone(childComplexity), true
 
-	case "Payment.amount":
-		if e.ComplexityRoot.Payment.Amount == nil {
+	case "Payment.amountKopecks":
+		if e.ComplexityRoot.Payment.AmountKopecks == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Payment.Amount(childComplexity), true
+		return e.ComplexityRoot.Payment.AmountKopecks(childComplexity), true
 	case "Payment.appointmentId":
 		if e.ComplexityRoot.Payment.AppointmentID == nil {
 			break
@@ -780,12 +781,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.PaymentSummary.Count(childComplexity), true
-	case "PaymentSummary.total":
-		if e.ComplexityRoot.PaymentSummary.Total == nil {
+	case "PaymentSummary.totalKopecks":
+		if e.ComplexityRoot.PaymentSummary.TotalKopecks == nil {
 			break
 		}
 
-		return e.ComplexityRoot.PaymentSummary.Total(childComplexity), true
+		return e.ComplexityRoot.PaymentSummary.TotalKopecks(childComplexity), true
 
 	case "Prescription.id":
 		if e.ComplexityRoot.Prescription.ID == nil {
@@ -827,7 +828,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Appointments(childComplexity, args["doctorId"].(*string), args["date"].(*string), args["status"].(*model.AppointmentStatus), args["sort"].(*model.AppointmentSort)), true
+		return e.ComplexityRoot.Query.Appointments(childComplexity, args["doctorId"].(*string), args["date"].(*scalar.Date), args["status"].(*model.AppointmentStatus), args["sort"].(*model.AppointmentSort)), true
 	case "Query.doctorLoad":
 		if e.ComplexityRoot.Query.DoctorLoad == nil {
 			break
@@ -838,7 +839,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DoctorLoad(childComplexity, args["from"].(string), args["to"].(string)), true
+		return e.ComplexityRoot.Query.DoctorLoad(childComplexity, args["from"].(scalar.Date), args["to"].(scalar.Date)), true
 	case "Query.doctors":
 		if e.ComplexityRoot.Query.Doctors == nil {
 			break
@@ -860,7 +861,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.FreeSlots(childComplexity, args["doctorId"].(string), args["date"].(string)), true
+		return e.ComplexityRoot.Query.FreeSlots(childComplexity, args["doctorId"].(string), args["date"].(scalar.Date)), true
 
 	case "Query.me":
 		if e.ComplexityRoot.Query.Me == nil {
@@ -912,7 +913,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.PaymentSummary(childComplexity, args["from"].(string), args["to"].(string)), true
+		return e.ComplexityRoot.Query.PaymentSummary(childComplexity, args["from"].(scalar.Date), args["to"].(scalar.Date)), true
 	case "Query.payments":
 		if e.ComplexityRoot.Query.Payments == nil {
 			break
@@ -923,7 +924,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Payments(childComplexity, args["patientId"].(*string), args["status"].(*model.PaymentStatus), args["from"].(*string), args["to"].(*string)), true
+		return e.ComplexityRoot.Query.Payments(childComplexity, args["patientId"].(*string), args["status"].(*model.PaymentStatus), args["from"].(*scalar.Date), args["to"].(*scalar.Date)), true
 	case "Query.popularServices":
 		if e.ComplexityRoot.Query.PopularServices == nil {
 			break
@@ -934,7 +935,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.PopularServices(childComplexity, args["from"].(string), args["to"].(string), args["limit"].(*int32)), true
+		return e.ComplexityRoot.Query.PopularServices(childComplexity, args["from"].(scalar.Date), args["to"].(scalar.Date), args["limit"].(*int32)), true
 	case "Query.specialties":
 		if e.ComplexityRoot.Query.Specialties == nil {
 			break
@@ -1161,6 +1162,11 @@ enum VisitType { SCHEDULED WALK_IN }
 enum PaymentStatus { PENDING PAID FAILED }
 enum PaymentMethod { CASH CARD ONLINE }
 enum NotificationStatus { PENDING SENT READ FAILED }
+# Календарный день YYYY-MM-DD.
+scalar Date
+# Момент времени RFC 3339 с поясом: 2026-11-20T09:00:00+03:00.
+scalar DateTime
+
 enum AppointmentSort { SCHEDULED_AT_ASC SCHEDULED_AT_DESC }
 
 type User {
@@ -1180,7 +1186,7 @@ type Role {
 type Patient {
   id: ID!
   fullName: String!
-  birthDate: String
+  birthDate: Date
   gender: String
   phone: String
   address: String
@@ -1201,7 +1207,8 @@ type Specialty {
 type MedicalService {
   id: ID!
   name: String!
-  price: Float!
+  # Деньги — целые копейки (BYN), без дробных частей и ошибок округления.
+  priceKopecks: Int!
   durationMin: Int
 }
 
@@ -1216,8 +1223,8 @@ type Medication {
 type ScheduleSlot {
   id: ID!
   doctorId: ID!
-  startsAt: String!
-  endsAt: String!
+  startsAt: DateTime!
+  endsAt: DateTime!
   status: SlotStatus!
 }
 
@@ -1229,7 +1236,7 @@ type Appointment {
   serviceId: ID
   status: AppointmentStatus!
   visitType: VisitType!
-  scheduledAt: String
+  scheduledAt: DateTime
   conclusion: String
   diagnoses: [Diagnosis!]!
   prescriptions: [Prescription!]!
@@ -1252,15 +1259,15 @@ type Payment {
   appointmentId: ID!
   patientId: ID!
   serviceId: ID
-  amount: Float!
+  amountKopecks: Int!
   method: PaymentMethod!
   status: PaymentStatus!
-  paidAt: String
+  paidAt: DateTime
 }
 
 type PaymentSummary {
   count: Int!
-  total: Float!
+  totalKopecks: Int!
 }
 
 type Notification {
@@ -1270,7 +1277,7 @@ type Notification {
   status: NotificationStatus!
   relatedType: String
   relatedId: ID
-  createdAt: String!
+  createdAt: DateTime!
 }
 
 type AuthPayload {
@@ -1283,7 +1290,7 @@ input RegisterPatientInput {
   password: String!
   fullName: String!
   phone: String
-  birthDate: String
+  birthDate: Date
   gender: String
   address: String
 }
@@ -1295,14 +1302,14 @@ input LoginInput {
 
 input CreateSlotsInput {
   doctorId: ID!
-  startsAt: String!
-  endsAt: String!
+  startsAt: DateTime!
+  endsAt: DateTime!
 }
 
 input UpdateSlotsInput {
   slotIds: [ID!]!
-  startsAt: String
-  endsAt: String
+  startsAt: DateTime
+  endsAt: DateTime
 }
 
 input BookAppointmentInput {
@@ -1352,7 +1359,7 @@ input CreatePaymentInput {
   appointmentId: ID!
   patientId: ID!
   serviceId: ID
-  amount: Float!
+  amountKopecks: Int!
   method: PaymentMethod!
 }
 
@@ -1374,15 +1381,15 @@ type Query {
   doctors(specialtyId: ID): [Doctor!]!
   medicalServices: [MedicalService!]!
   medications: [Medication!]!
-  freeSlots(doctorId: ID!, date: String!): [ScheduleSlot!]!
+  freeSlots(doctorId: ID!, date: Date!): [ScheduleSlot!]!
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
-  payments(patientId: ID, status: PaymentStatus, from: String, to: String): [Payment!]!
-  paymentSummary(from: String!, to: String!): PaymentSummary!
+  payments(patientId: ID, status: PaymentStatus, from: Date, to: Date): [Payment!]!
+  paymentSummary(from: Date!, to: Date!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
-  appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
-  doctorLoad(from: String!, to: String!): [DoctorLoad!]!
-  popularServices(from: String!, to: String!, limit: Int): [ServiceStat!]!
+  appointments(doctorId: ID, date: Date, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
+  doctorLoad(from: Date!, to: Date!): [DoctorLoad!]!
+  popularServices(from: Date!, to: Date!, limit: Int): [ServiceStat!]!
 }
 
 type Mutation {
@@ -1494,8 +1501,8 @@ func (ec *executionContext) childFields_MedicalService(ctx context.Context, fiel
 		return ec.fieldContext_MedicalService_id(ctx, field)
 	case "name":
 		return ec.fieldContext_MedicalService_name(ctx, field)
-	case "price":
-		return ec.fieldContext_MedicalService_price(ctx, field)
+	case "priceKopecks":
+		return ec.fieldContext_MedicalService_priceKopecks(ctx, field)
 	case "durationMin":
 		return ec.fieldContext_MedicalService_durationMin(ctx, field)
 	}
@@ -1548,8 +1555,8 @@ func (ec *executionContext) childFields_Payment(ctx context.Context, field graph
 		return ec.fieldContext_Payment_patientId(ctx, field)
 	case "serviceId":
 		return ec.fieldContext_Payment_serviceId(ctx, field)
-	case "amount":
-		return ec.fieldContext_Payment_amount(ctx, field)
+	case "amountKopecks":
+		return ec.fieldContext_Payment_amountKopecks(ctx, field)
 	case "method":
 		return ec.fieldContext_Payment_method(ctx, field)
 	case "status":
@@ -1564,8 +1571,8 @@ func (ec *executionContext) childFields_PaymentSummary(ctx context.Context, fiel
 	switch field.Name {
 	case "count":
 		return ec.fieldContext_PaymentSummary_count(ctx, field)
-	case "total":
-		return ec.fieldContext_PaymentSummary_total(ctx, field)
+	case "totalKopecks":
+		return ec.fieldContext_PaymentSummary_totalKopecks(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type PaymentSummary", field.Name)
 }
@@ -2098,8 +2105,8 @@ func (ec *executionContext) field_Query_appointments_args(ctx context.Context, r
 	}
 	args["doctorId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "date",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
+		func(ctx context.Context, v any) (*scalar.Date, error) {
+			return ec.unmarshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2128,16 +2135,16 @@ func (ec *executionContext) field_Query_doctorLoad_args(ctx context.Context, raw
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "from",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
 	args["from"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "to",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2172,8 +2179,8 @@ func (ec *executionContext) field_Query_freeSlots_args(ctx context.Context, rawA
 	}
 	args["doctorId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "date",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2214,16 +2221,16 @@ func (ec *executionContext) field_Query_paymentSummary_args(ctx context.Context,
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "from",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
 	args["from"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "to",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2252,16 +2259,16 @@ func (ec *executionContext) field_Query_payments_args(ctx context.Context, rawAr
 	}
 	args["status"] = arg1
 	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "from",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
+		func(ctx context.Context, v any) (*scalar.Date, error) {
+			return ec.unmarshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
 	args["from"] = arg2
 	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "to",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
+		func(ctx context.Context, v any) (*scalar.Date, error) {
+			return ec.unmarshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2274,16 +2281,16 @@ func (ec *executionContext) field_Query_popularServices_args(ctx context.Context
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "from",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
 	args["from"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "to",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (scalar.Date, error) {
+			return ec.unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2547,15 +2554,15 @@ func (ec *executionContext) _Appointment_scheduledAt(ctx context.Context, field 
 			return obj.ScheduledAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *scalar.DateTime) graphql.Marshaler {
+			return ec.marshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, selections, v)
 		},
 		true,
 		false,
 	)
 }
 func (ec *executionContext) fieldContext_Appointment_scheduledAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Appointment", field, false, false, "String")
+	return graphql.NewScalarFieldContext("Appointment", field, false, false, "DateTime")
 }
 
 func (ec *executionContext) _Appointment_conclusion(ctx context.Context, field graphql.CollectedField, obj *model.Appointment) (ret graphql.Marshaler) {
@@ -2985,27 +2992,27 @@ func (ec *executionContext) fieldContext_MedicalService_name(_ context.Context, 
 	return graphql.NewScalarFieldContext("MedicalService", field, false, false, "String")
 }
 
-func (ec *executionContext) _MedicalService_price(ctx context.Context, field graphql.CollectedField, obj *model.MedicalService) (ret graphql.Marshaler) {
+func (ec *executionContext) _MedicalService_priceKopecks(ctx context.Context, field graphql.CollectedField, obj *model.MedicalService) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_MedicalService_price(ctx, field)
+			return ec.fieldContext_MedicalService_priceKopecks(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Price, nil
+			return obj.PriceKopecks, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
-			return ec.marshalNFloat2float64(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_MedicalService_price(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("MedicalService", field, false, false, "Float")
+func (ec *executionContext) fieldContext_MedicalService_priceKopecks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MedicalService", field, false, false, "Int")
 }
 
 func (ec *executionContext) _MedicalService_durationMin(ctx context.Context, field graphql.CollectedField, obj *model.MedicalService) (ret graphql.Marshaler) {
@@ -4044,15 +4051,15 @@ func (ec *executionContext) _Notification_createdAt(ctx context.Context, field g
 			return obj.CreatedAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v scalar.DateTime) graphql.Marshaler {
+			return ec.marshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Notification_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Notification", field, false, false, "String")
+	return graphql.NewScalarFieldContext("Notification", field, false, false, "DateTime")
 }
 
 func (ec *executionContext) _Patient_id(ctx context.Context, field graphql.CollectedField, obj *model.Patient) (ret graphql.Marshaler) {
@@ -4113,15 +4120,15 @@ func (ec *executionContext) _Patient_birthDate(ctx context.Context, field graphq
 			return obj.BirthDate, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *scalar.Date) graphql.Marshaler {
+			return ec.marshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, selections, v)
 		},
 		true,
 		false,
 	)
 }
 func (ec *executionContext) fieldContext_Patient_birthDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Patient", field, false, false, "String")
+	return graphql.NewScalarFieldContext("Patient", field, false, false, "Date")
 }
 
 func (ec *executionContext) _Patient_gender(ctx context.Context, field graphql.CollectedField, obj *model.Patient) (ret graphql.Marshaler) {
@@ -4285,27 +4292,27 @@ func (ec *executionContext) fieldContext_Payment_serviceId(_ context.Context, fi
 	return graphql.NewScalarFieldContext("Payment", field, false, false, "ID")
 }
 
-func (ec *executionContext) _Payment_amount(ctx context.Context, field graphql.CollectedField, obj *model.Payment) (ret graphql.Marshaler) {
+func (ec *executionContext) _Payment_amountKopecks(ctx context.Context, field graphql.CollectedField, obj *model.Payment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Payment_amount(ctx, field)
+			return ec.fieldContext_Payment_amountKopecks(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Amount, nil
+			return obj.AmountKopecks, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
-			return ec.marshalNFloat2float64(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Payment_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Payment", field, false, false, "Float")
+func (ec *executionContext) fieldContext_Payment_amountKopecks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Payment", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Payment_method(ctx context.Context, field graphql.CollectedField, obj *model.Payment) (ret graphql.Marshaler) {
@@ -4366,15 +4373,15 @@ func (ec *executionContext) _Payment_paidAt(ctx context.Context, field graphql.C
 			return obj.PaidAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *scalar.DateTime) graphql.Marshaler {
+			return ec.marshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, selections, v)
 		},
 		true,
 		false,
 	)
 }
 func (ec *executionContext) fieldContext_Payment_paidAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Payment", field, false, false, "String")
+	return graphql.NewScalarFieldContext("Payment", field, false, false, "DateTime")
 }
 
 func (ec *executionContext) _PaymentSummary_count(ctx context.Context, field graphql.CollectedField, obj *model.PaymentSummary) (ret graphql.Marshaler) {
@@ -4400,27 +4407,27 @@ func (ec *executionContext) fieldContext_PaymentSummary_count(_ context.Context,
 	return graphql.NewScalarFieldContext("PaymentSummary", field, false, false, "Int")
 }
 
-func (ec *executionContext) _PaymentSummary_total(ctx context.Context, field graphql.CollectedField, obj *model.PaymentSummary) (ret graphql.Marshaler) {
+func (ec *executionContext) _PaymentSummary_totalKopecks(ctx context.Context, field graphql.CollectedField, obj *model.PaymentSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_PaymentSummary_total(ctx, field)
+			return ec.fieldContext_PaymentSummary_totalKopecks(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Total, nil
+			return obj.TotalKopecks, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
-			return ec.marshalNFloat2float64(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_PaymentSummary_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PaymentSummary", field, false, false, "Float")
+func (ec *executionContext) fieldContext_PaymentSummary_totalKopecks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PaymentSummary", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Prescription_id(ctx context.Context, field graphql.CollectedField, obj *model.Prescription) (ret graphql.Marshaler) {
@@ -4674,7 +4681,7 @@ func (ec *executionContext) _Query_freeSlots(ctx context.Context, field graphql.
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().FreeSlots(ctx, fc.Args["doctorId"].(string), fc.Args["date"].(string))
+			return ec.Resolvers.Query().FreeSlots(ctx, fc.Args["doctorId"].(string), fc.Args["date"].(scalar.Date))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.ScheduleSlot) graphql.Marshaler {
@@ -4806,7 +4813,7 @@ func (ec *executionContext) _Query_payments(ctx context.Context, field graphql.C
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Payments(ctx, fc.Args["patientId"].(*string), fc.Args["status"].(*model.PaymentStatus), fc.Args["from"].(*string), fc.Args["to"].(*string))
+			return ec.Resolvers.Query().Payments(ctx, fc.Args["patientId"].(*string), fc.Args["status"].(*model.PaymentStatus), fc.Args["from"].(*scalar.Date), fc.Args["to"].(*scalar.Date))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Payment) graphql.Marshaler {
@@ -4850,7 +4857,7 @@ func (ec *executionContext) _Query_paymentSummary(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().PaymentSummary(ctx, fc.Args["from"].(string), fc.Args["to"].(string))
+			return ec.Resolvers.Query().PaymentSummary(ctx, fc.Args["from"].(scalar.Date), fc.Args["to"].(scalar.Date))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.PaymentSummary) graphql.Marshaler {
@@ -4938,7 +4945,7 @@ func (ec *executionContext) _Query_appointments(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Appointments(ctx, fc.Args["doctorId"].(*string), fc.Args["date"].(*string), fc.Args["status"].(*model.AppointmentStatus), fc.Args["sort"].(*model.AppointmentSort))
+			return ec.Resolvers.Query().Appointments(ctx, fc.Args["doctorId"].(*string), fc.Args["date"].(*scalar.Date), fc.Args["status"].(*model.AppointmentStatus), fc.Args["sort"].(*model.AppointmentSort))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Appointment) graphql.Marshaler {
@@ -4982,7 +4989,7 @@ func (ec *executionContext) _Query_doctorLoad(ctx context.Context, field graphql
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DoctorLoad(ctx, fc.Args["from"].(string), fc.Args["to"].(string))
+			return ec.Resolvers.Query().DoctorLoad(ctx, fc.Args["from"].(scalar.Date), fc.Args["to"].(scalar.Date))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.DoctorLoad) graphql.Marshaler {
@@ -5026,7 +5033,7 @@ func (ec *executionContext) _Query_popularServices(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().PopularServices(ctx, fc.Args["from"].(string), fc.Args["to"].(string), fc.Args["limit"].(*int32))
+			return ec.Resolvers.Query().PopularServices(ctx, fc.Args["from"].(scalar.Date), fc.Args["to"].(scalar.Date), fc.Args["limit"].(*int32))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.ServiceStat) graphql.Marshaler {
@@ -5263,15 +5270,15 @@ func (ec *executionContext) _ScheduleSlot_startsAt(ctx context.Context, field gr
 			return obj.StartsAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v scalar.DateTime) graphql.Marshaler {
+			return ec.marshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_ScheduleSlot_startsAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ScheduleSlot", field, false, false, "String")
+	return graphql.NewScalarFieldContext("ScheduleSlot", field, false, false, "DateTime")
 }
 
 func (ec *executionContext) _ScheduleSlot_endsAt(ctx context.Context, field graphql.CollectedField, obj *model.ScheduleSlot) (ret graphql.Marshaler) {
@@ -5286,15 +5293,15 @@ func (ec *executionContext) _ScheduleSlot_endsAt(ctx context.Context, field grap
 			return obj.EndsAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v scalar.DateTime) graphql.Marshaler {
+			return ec.marshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_ScheduleSlot_endsAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ScheduleSlot", field, false, false, "String")
+	return graphql.NewScalarFieldContext("ScheduleSlot", field, false, false, "DateTime")
 }
 
 func (ec *executionContext) _ScheduleSlot_status(ctx context.Context, field graphql.CollectedField, obj *model.ScheduleSlot) (ret graphql.Marshaler) {
@@ -6874,7 +6881,7 @@ func (ec *executionContext) unmarshalInputCreatePaymentInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"appointmentId", "patientId", "serviceId", "amount", "method"}
+	fieldsInOrder := [...]string{"appointmentId", "patientId", "serviceId", "amountKopecks", "method"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6902,13 +6909,13 @@ func (ec *executionContext) unmarshalInputCreatePaymentInput(ctx context.Context
 				return it, err
 			}
 			it.ServiceID = data
-		case "amount":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
-			data, err := ec.unmarshalNFloat2float64(ctx, v)
+		case "amountKopecks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amountKopecks"))
+			data, err := ec.unmarshalNInt2int32(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Amount = data
+			it.AmountKopecks = data
 		case "method":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("method"))
 			data, err := ec.unmarshalNPaymentMethod2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentMethod(ctx, v)
@@ -6960,14 +6967,14 @@ func (ec *executionContext) unmarshalInputCreateSlotsInput(ctx context.Context, 
 			it.DoctorID = data
 		case "startsAt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startsAt"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.StartsAt = data
 		case "endsAt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endsAt"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7149,7 +7156,7 @@ func (ec *executionContext) unmarshalInputRegisterPatientInput(ctx context.Conte
 			it.Phone = data
 		case "birthDate":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("birthDate"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			data, err := ec.unmarshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7261,14 +7268,14 @@ func (ec *executionContext) unmarshalInputUpdateSlotsInput(ctx context.Context, 
 			it.SlotIds = data
 		case "startsAt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startsAt"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			data, err := ec.unmarshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.StartsAt = data
 		case "endsAt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endsAt"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			data, err := ec.unmarshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7630,8 +7637,8 @@ func (ec *executionContext) _MedicalService(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "price":
-			out.Values[i] = ec._MedicalService_price(ctx, field, obj)
+		case "priceKopecks":
+			out.Values[i] = ec._MedicalService_priceKopecks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8017,8 +8024,8 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
-		case "amount":
-			out.Values[i] = ec._Payment_amount(ctx, field, obj)
+		case "amountKopecks":
+			out.Values[i] = ec._Payment_amountKopecks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8070,8 +8077,8 @@ func (ec *executionContext) _PaymentSummary(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "total":
-			out.Values[i] = ec._PaymentSummary_total(ctx, field, obj)
+		case "totalKopecks":
+			out.Values[i] = ec._PaymentSummary_totalKopecks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8947,6 +8954,26 @@ func (ec *executionContext) unmarshalNCreateSlotsInput2githubᚗcomᚋPaPaSmUrFi
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx context.Context, v any) (scalar.Date, error) {
+	var res scalar.Date
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDate2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx context.Context, sel ast.SelectionSet, v scalar.Date) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx context.Context, v any) (scalar.DateTime, error) {
+	var res scalar.DateTime
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDateTime2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx context.Context, sel ast.SelectionSet, v scalar.DateTime) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNDiagnosis2ᚕᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐDiagnosisᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Diagnosis) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -9648,6 +9675,38 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx context.Context, v any) (*scalar.Date, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(scalar.Date)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODate2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDate(ctx context.Context, sel ast.SelectionSet, v *scalar.Date) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx context.Context, v any) (*scalar.DateTime, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(scalar.DateTime)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODateTime2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋscalarᚐDateTime(ctx context.Context, sel ast.SelectionSet, v *scalar.DateTime) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {

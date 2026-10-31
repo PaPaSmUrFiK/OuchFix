@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar"
 )
 
 type AddDiagnosisInput struct {
@@ -29,7 +31,7 @@ type Appointment struct {
 	ServiceID     *string           `json:"serviceId,omitempty"`
 	Status        AppointmentStatus `json:"status"`
 	VisitType     VisitType         `json:"visitType"`
-	ScheduledAt   *string           `json:"scheduledAt,omitempty"`
+	ScheduledAt   *scalar.DateTime  `json:"scheduledAt,omitempty"`
 	Conclusion    *string           `json:"conclusion,omitempty"`
 	Diagnoses     []*Diagnosis      `json:"diagnoses"`
 	Prescriptions []*Prescription   `json:"prescriptions"`
@@ -57,14 +59,14 @@ type CreatePaymentInput struct {
 	AppointmentID string        `json:"appointmentId"`
 	PatientID     string        `json:"patientId"`
 	ServiceID     *string       `json:"serviceId,omitempty"`
-	Amount        float64       `json:"amount"`
+	AmountKopecks int32         `json:"amountKopecks"`
 	Method        PaymentMethod `json:"method"`
 }
 
 type CreateSlotsInput struct {
-	DoctorID string `json:"doctorId"`
-	StartsAt string `json:"startsAt"`
-	EndsAt   string `json:"endsAt"`
+	DoctorID string          `json:"doctorId"`
+	StartsAt scalar.DateTime `json:"startsAt"`
+	EndsAt   scalar.DateTime `json:"endsAt"`
 }
 
 type Diagnosis struct {
@@ -99,10 +101,10 @@ type LoginInput struct {
 }
 
 type MedicalService struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	DurationMin *int32  `json:"durationMin,omitempty"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	PriceKopecks int32  `json:"priceKopecks"`
+	DurationMin  *int32 `json:"durationMin,omitempty"`
 }
 
 type Medication struct {
@@ -123,32 +125,32 @@ type Notification struct {
 	Status      NotificationStatus `json:"status"`
 	RelatedType *string            `json:"relatedType,omitempty"`
 	RelatedID   *string            `json:"relatedId,omitempty"`
-	CreatedAt   string             `json:"createdAt"`
+	CreatedAt   scalar.DateTime    `json:"createdAt"`
 }
 
 type Patient struct {
-	ID        string  `json:"id"`
-	FullName  string  `json:"fullName"`
-	BirthDate *string `json:"birthDate,omitempty"`
-	Gender    *string `json:"gender,omitempty"`
-	Phone     *string `json:"phone,omitempty"`
-	Address   *string `json:"address,omitempty"`
+	ID        string       `json:"id"`
+	FullName  string       `json:"fullName"`
+	BirthDate *scalar.Date `json:"birthDate,omitempty"`
+	Gender    *string      `json:"gender,omitempty"`
+	Phone     *string      `json:"phone,omitempty"`
+	Address   *string      `json:"address,omitempty"`
 }
 
 type Payment struct {
-	ID            string        `json:"id"`
-	AppointmentID string        `json:"appointmentId"`
-	PatientID     string        `json:"patientId"`
-	ServiceID     *string       `json:"serviceId,omitempty"`
-	Amount        float64       `json:"amount"`
-	Method        PaymentMethod `json:"method"`
-	Status        PaymentStatus `json:"status"`
-	PaidAt        *string       `json:"paidAt,omitempty"`
+	ID            string           `json:"id"`
+	AppointmentID string           `json:"appointmentId"`
+	PatientID     string           `json:"patientId"`
+	ServiceID     *string          `json:"serviceId,omitempty"`
+	AmountKopecks int32            `json:"amountKopecks"`
+	Method        PaymentMethod    `json:"method"`
+	Status        PaymentStatus    `json:"status"`
+	PaidAt        *scalar.DateTime `json:"paidAt,omitempty"`
 }
 
 type PaymentSummary struct {
-	Count int32   `json:"count"`
-	Total float64 `json:"total"`
+	Count        int32 `json:"count"`
+	TotalKopecks int32 `json:"totalKopecks"`
 }
 
 type Prescription struct {
@@ -161,13 +163,13 @@ type Query struct {
 }
 
 type RegisterPatientInput struct {
-	Email     string  `json:"email"`
-	Password  string  `json:"password"`
-	FullName  string  `json:"fullName"`
-	Phone     *string `json:"phone,omitempty"`
-	BirthDate *string `json:"birthDate,omitempty"`
-	Gender    *string `json:"gender,omitempty"`
-	Address   *string `json:"address,omitempty"`
+	Email     string       `json:"email"`
+	Password  string       `json:"password"`
+	FullName  string       `json:"fullName"`
+	Phone     *string      `json:"phone,omitempty"`
+	BirthDate *scalar.Date `json:"birthDate,omitempty"`
+	Gender    *string      `json:"gender,omitempty"`
+	Address   *string      `json:"address,omitempty"`
 }
 
 type RescheduleAppointmentInput struct {
@@ -182,11 +184,11 @@ type Role struct {
 }
 
 type ScheduleSlot struct {
-	ID       string     `json:"id"`
-	DoctorID string     `json:"doctorId"`
-	StartsAt string     `json:"startsAt"`
-	EndsAt   string     `json:"endsAt"`
-	Status   SlotStatus `json:"status"`
+	ID       string          `json:"id"`
+	DoctorID string          `json:"doctorId"`
+	StartsAt scalar.DateTime `json:"startsAt"`
+	EndsAt   scalar.DateTime `json:"endsAt"`
+	Status   SlotStatus      `json:"status"`
 }
 
 type ServiceStat struct {
@@ -201,9 +203,9 @@ type Specialty struct {
 }
 
 type UpdateSlotsInput struct {
-	SlotIds  []string `json:"slotIds"`
-	StartsAt *string  `json:"startsAt,omitempty"`
-	EndsAt   *string  `json:"endsAt,omitempty"`
+	SlotIds  []string         `json:"slotIds"`
+	StartsAt *scalar.DateTime `json:"startsAt,omitempty"`
+	EndsAt   *scalar.DateTime `json:"endsAt,omitempty"`
 }
 
 type User struct {

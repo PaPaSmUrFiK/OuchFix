@@ -12,7 +12,7 @@ type Payment struct {
 	AppointmentID int64         `db:"appointment_id"`
 	PatientID     int64         `db:"patient_id"`
 	ServiceID     sql.NullInt64 `db:"service_id"`
-	Amount        float64       `db:"amount"`
+	AmountKopecks int64         `db:"amount_kopecks"`
 	Method        string        `db:"method"`
 	Status        string        `db:"status"`
 	CreatedAt     time.Time     `db:"created_at"`
@@ -24,7 +24,7 @@ func (m Payment) ToDomain() domain.Payment {
 		ID:            m.ID,
 		AppointmentID: m.AppointmentID,
 		PatientID:     m.PatientID,
-		Amount:        m.Amount,
+		AmountKopecks: m.AmountKopecks,
 		Method:        domain.Method(m.Method),
 		Status:        domain.Status(m.Status),
 		CreatedAt:     m.CreatedAt,

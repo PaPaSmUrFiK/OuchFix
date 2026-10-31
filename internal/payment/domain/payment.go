@@ -23,7 +23,7 @@ type Payment struct {
 	AppointmentID int64
 	PatientID     int64
 	ServiceID     *int64
-	Amount        float64
+	AmountKopecks int64
 	Method        Method
 	Status        Status
 	CreatedAt     time.Time
@@ -49,6 +49,6 @@ func (s Status) Valid() bool {
 
 // Summary — выручка за период: число и сумма оплаченных платежей.
 type Summary struct {
-	Count int
-	Total float64
+	Count        int
+	TotalKopecks int64
 }
