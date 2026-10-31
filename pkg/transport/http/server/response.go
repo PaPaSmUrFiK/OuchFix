@@ -74,6 +74,19 @@ func BindJSON(c fiber.Ctx, out any) error {
 	return nil
 }
 
+// QueryInt читает необязательное целое из query-строки.
+func QueryInt(c fiber.Ctx, name string) (*int, error) {
+	raw := c.Query(name)
+	if raw == "" {
+		return nil, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s должен быть целым числом, получено %q", pkgerrors.ErrInvalidArgument, name, raw)
+	}
+	return &n, nil
+}
+
 // ParseID разбирает числовой id из тела запроса (в JSON id — строки, как в GraphQL).
 func ParseID(name, raw string) (int64, error) {
 	return parseID(name, raw)

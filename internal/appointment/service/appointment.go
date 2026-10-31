@@ -32,6 +32,10 @@ type AppointmentRepository interface {
 	UpdateAppointment(ctx context.Context, a domain.Appointment) error
 	InsertDiagnosis(ctx context.Context, d domain.Diagnosis) (*domain.Diagnosis, error)
 	InsertPrescription(ctx context.Context, p domain.Prescription) (*domain.Prescription, error)
+
+	ListAppointments(ctx context.Context, f domain.AppointmentFilter) ([]domain.Appointment, error)
+	DoctorLoad(ctx context.Context, from, to time.Time) ([]domain.DoctorLoad, error)
+	PopularServices(ctx context.Context, from, to time.Time, limit int) ([]domain.ServiceStat, error)
 }
 
 // CatalogClient — то, что Appointment спрашивает у Catalog (CatalogGrpc).

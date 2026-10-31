@@ -229,18 +229,36 @@ func (r *queryResolver) MyNotifications(ctx context.Context, status *model.Notif
 }
 
 // Appointments is the resolver for the appointments field.
-func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus) ([]*model.Appointment, error) {
-	return nil, notImplemented("appointments", "ЛР4")
+func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error) {
+	query := url.Values{}
+	if doctorID != nil {
+		id, err := parseID("doctorId", *doctorID)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("doctorId", id)
+	}
+	optionalQuery(query, "date", date)
+	optionalQuery(query, "status", status)
+	optionalQuery(query, "sort", sort)
+	var out []*model.Appointment
+	return out, r.services.Appointment.Get(ctx, "/appointments", query, &out)
 }
 
 // DoctorLoad is the resolver for the doctorLoad field.
 func (r *queryResolver) DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error) {
-	return nil, notImplemented("doctorLoad", "ЛР4")
+	var out []*model.DoctorLoad
+	return out, r.services.Appointment.Get(ctx, "/stats/doctor-load", url.Values{"from": {from}, "to": {to}}, &out)
 }
 
 // PopularServices is the resolver for the popularServices field.
 func (r *queryResolver) PopularServices(ctx context.Context, from string, to string, limit *int32) ([]*model.ServiceStat, error) {
-	return nil, notImplemented("popularServices", "ЛР4")
+	query := url.Values{"from": {from}, "to": {to}}
+	if limit != nil {
+		query.Set("limit", strconv.Itoa(int(*limit)))
+	}
+	var out []*model.ServiceStat
+	return out, r.services.Appointment.Get(ctx, "/stats/popular-services", query, &out)
 }
 
 // Mutation returns generated.MutationResolver implementation.

@@ -176,6 +176,32 @@ func New(svc *service.AppointmentService, loc *time.Location) func(fiber.Router)
 			}
 			return httpserver.Reply(c, toPrescription(p), nil)
 		})
+		router.Get("/appointments", func(c fiber.Ctx) error {
+			doctorID, err := httpserver.QueryID(c, "doctorId")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in := service.ListInput{
+				DoctorID: doctorID,
+				Date:     queryString(c, "date"),
+				Status:   httpserver.QueryEnum[domain.Status](c, "status"),
+				Sort:     httpserver.QueryEnum[domain.Sort](c, "sort"),
+			}
+			items, err := svc.ListAppointments(c.Context(), in)
+			return httpserver.Reply(c, httpserver.MapList(items, toAppointment(loc)), err)
+		})
+		router.Get("/stats/doctor-load", func(c fiber.Ctx) error {
+			items, err := svc.DoctorLoad(c.Context(), c.Query("from"), c.Query("to"))
+			return httpserver.Reply(c, httpserver.MapList(items, toDoctorLoad), err)
+		})
+		router.Get("/stats/popular-services", func(c fiber.Ctx) error {
+			limit, err := httpserver.QueryInt(c, "limit")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			items, err := svc.PopularServices(c.Context(), c.Query("from"), c.Query("to"), limit)
+			return httpserver.Reply(c, httpserver.MapList(items, toServiceStat), err)
+		})
 	}
 }
 
@@ -187,4 +213,11 @@ func replyAppointment(c fiber.Ctx, loc *time.Location) func(*domain.Appointment,
 		}
 		return httpserver.Reply(c, toAppointment(loc)(a), nil)
 	}
+}
+
+func queryString(c fiber.Ctx, name string) *string {
+	if v := c.Query(name); v != "" {
+		return &v
+	}
+	return nil
 }

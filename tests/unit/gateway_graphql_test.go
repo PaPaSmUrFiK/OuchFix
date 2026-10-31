@@ -166,7 +166,6 @@ func TestGraphQLNotImplementedOperations(t *testing.T) {
 	h, _ := newGatewayHandler(t, 5)
 	for _, q := range []string{
 		`{ me { id } }`,
-		`{ appointments { id } }`,
 		`mutation { login(input: {email: "a", password: "b"}) { token } }`,
 	} {
 		if resp := doGraphQL(t, h, q); len(resp.Errors) != 1 {
@@ -235,5 +234,29 @@ func TestGraphQLMutationsProxyInput(t *testing.T) {
 		if len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != tc.code {
 			t.Fatalf("%s: want %s, got %+v", tc.query, tc.code, resp.Errors)
 		}
+	}
+}
+
+func TestGraphQLAppointmentQueriesProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.appointment.responses["/appointments"] = `[]`
+	f.appointment.responses["/stats/doctor-load"] = `[{"doctorId":"1","fullName":"Петров","appointmentCount":2}]`
+	f.appointment.responses["/stats/popular-services"] = `[]`
+	q := `{ appointments(doctorId: "1", date: "2030-03-01", status: SCHEDULED, sort: SCHEDULED_AT_DESC) { id }
+	        doctorLoad(from: "2030-03-01", to: "2030-03-31") { fullName appointmentCount }
+	        popularServices(from: "2030-03-01", to: "2030-03-31", limit: 3) { name } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := map[string]bool{
+		"/appointments?date=2030-03-01&doctorId=1&sort=SCHEDULED_AT_DESC&status=SCHEDULED": true,
+		"/stats/doctor-load?from=2030-03-01&to=2030-03-31":                                 true,
+		"/stats/popular-services?from=2030-03-01&limit=3&to=2030-03-31":                    true,
+	}
+	for _, c := range f.appointment.calls {
+		delete(want, c)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing calls %v, got %v", want, f.appointment.calls)
 	}
 }

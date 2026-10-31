@@ -146,7 +146,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Appointment     func(childComplexity int, id string) int
-		Appointments    func(childComplexity int, doctorID *string, date *string, status *model.AppointmentStatus) int
+		Appointments    func(childComplexity int, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) int
 		DoctorLoad      func(childComplexity int, from string, to string) int
 		Doctors         func(childComplexity int, specialtyID *string) int
 		FreeSlots       func(childComplexity int, doctorID string, date string) int
@@ -228,7 +228,7 @@ type QueryResolver interface {
 	MyAppointments(ctx context.Context, status *model.AppointmentStatus) ([]*model.Appointment, error)
 	Payments(ctx context.Context, patientID *string) ([]*model.Payment, error)
 	MyNotifications(ctx context.Context, status *model.NotificationStatus) ([]*model.Notification, error)
-	Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus) ([]*model.Appointment, error)
+	Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error)
 	DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error)
 	PopularServices(ctx context.Context, from string, to string, limit *int32) ([]*model.ServiceStat, error)
 }
@@ -807,7 +807,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Appointments(childComplexity, args["doctorId"].(*string), args["date"].(*string), args["status"].(*model.AppointmentStatus)), true
+		return e.ComplexityRoot.Query.Appointments(childComplexity, args["doctorId"].(*string), args["date"].(*string), args["status"].(*model.AppointmentStatus), args["sort"].(*model.AppointmentSort)), true
 	case "Query.doctorLoad":
 		if e.ComplexityRoot.Query.DoctorLoad == nil {
 			break
@@ -1130,6 +1130,7 @@ enum VisitType { SCHEDULED WALK_IN }
 enum PaymentStatus { PENDING PAID FAILED }
 enum PaymentMethod { CASH CARD ONLINE }
 enum NotificationStatus { PENDING SENT READ FAILED }
+enum AppointmentSort { SCHEDULED_AT_ASC SCHEDULED_AT_DESC }
 
 type User {
   id: ID!
@@ -1342,7 +1343,7 @@ type Query {
   myAppointments(status: AppointmentStatus): [Appointment!]!
   payments(patientId: ID): [Payment!]!
   myNotifications(status: NotificationStatus): [Notification!]!
-  appointments(doctorId: ID, date: String, status: AppointmentStatus): [Appointment!]!
+  appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
   doctorLoad(from: String!, to: String!): [DoctorLoad!]!
   popularServices(from: String!, to: String!, limit: Int): [ServiceStat!]!
 }
@@ -2065,6 +2066,14 @@ func (ec *executionContext) field_Query_appointments_args(ctx context.Context, r
 		return nil, err
 	}
 	args["status"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "sort",
+		func(ctx context.Context, v any) (*model.AppointmentSort, error) {
+			return ec.unmarshalOAppointmentSort2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐAppointmentSort(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["sort"] = arg3
 	return args, nil
 }
 
@@ -4746,7 +4755,7 @@ func (ec *executionContext) _Query_appointments(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Appointments(ctx, fc.Args["doctorId"].(*string), fc.Args["date"].(*string), fc.Args["status"].(*model.AppointmentStatus))
+			return ec.Resolvers.Query().Appointments(ctx, fc.Args["doctorId"].(*string), fc.Args["date"].(*string), fc.Args["status"].(*model.AppointmentStatus), fc.Args["sort"].(*model.AppointmentSort))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Appointment) graphql.Marshaler {
@@ -9342,6 +9351,22 @@ func (ec *executionContext) marshalOAppointment2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋ
 		return graphql.Null
 	}
 	return ec._Appointment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAppointmentSort2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐAppointmentSort(ctx context.Context, v any) (*model.AppointmentSort, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.AppointmentSort)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAppointmentSort2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐAppointmentSort(ctx context.Context, sel ast.SelectionSet, v *model.AppointmentSort) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOAppointmentStatus2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐAppointmentStatus(ctx context.Context, v any) (*model.AppointmentStatus, error) {

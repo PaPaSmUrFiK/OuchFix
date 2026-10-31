@@ -80,3 +80,23 @@ func toDiagnosis(d *domain.Diagnosis) diagnosisResponse {
 func toPrescription(p *domain.Prescription) prescriptionResponse {
 	return prescriptionResponse{ID: httpserver.FormatID(p.ID), Text: p.Text, MedicationID: httpserver.FormatOptionalID(p.MedicationID)}
 }
+
+type doctorLoadResponse struct {
+	DoctorID         string `json:"doctorId"`
+	FullName         string `json:"fullName"`
+	AppointmentCount int    `json:"appointmentCount"`
+}
+
+type serviceStatResponse struct {
+	ServiceID    string `json:"serviceId"`
+	Name         string `json:"name"`
+	BookingCount int    `json:"bookingCount"`
+}
+
+func toDoctorLoad(d *domain.DoctorLoad) doctorLoadResponse {
+	return doctorLoadResponse{DoctorID: httpserver.FormatID(d.DoctorID), FullName: d.FullName, AppointmentCount: d.AppointmentCount}
+}
+
+func toServiceStat(s *domain.ServiceStat) serviceStatResponse {
+	return serviceStatResponse{ServiceID: httpserver.FormatID(s.ServiceID), Name: s.Name, BookingCount: s.BookingCount}
+}

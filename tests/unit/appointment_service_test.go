@@ -26,6 +26,28 @@ type fakeAppointmentRepo struct {
 	nextSlot int64
 	inTx     bool
 	locked   []int64
+
+	lastFilter  domain.AppointmentFilter
+	reportFrom  time.Time
+	reportTo    time.Time
+	reportLimit int
+	load        []domain.DoctorLoad
+	popular     []domain.ServiceStat
+}
+
+func (f *fakeAppointmentRepo) ListAppointments(_ context.Context, flt domain.AppointmentFilter) ([]domain.Appointment, error) {
+	f.lastFilter = flt
+	return []domain.Appointment{}, nil
+}
+
+func (f *fakeAppointmentRepo) DoctorLoad(_ context.Context, from, to time.Time) ([]domain.DoctorLoad, error) {
+	f.reportFrom, f.reportTo = from, to
+	return append([]domain.DoctorLoad(nil), f.load...), nil
+}
+
+func (f *fakeAppointmentRepo) PopularServices(_ context.Context, from, to time.Time, limit int) ([]domain.ServiceStat, error) {
+	f.reportFrom, f.reportTo, f.reportLimit = from, to, limit
+	return append([]domain.ServiceStat(nil), f.popular...), nil
 }
 
 func (f *fakeAppointmentRepo) GetAppointmentForUpdate(_ context.Context, id int64) (*domain.Appointment, error) {

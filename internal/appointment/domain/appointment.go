@@ -89,3 +89,39 @@ func (s Slot) Overlaps(from, to time.Time) bool {
 func (a Appointment) Active() bool {
 	return a.Status == StatusScheduled || a.Status == StatusQueue
 }
+
+// Sort — порядок списка приёмов по времени приёма.
+type Sort string
+
+const (
+	SortScheduledAtAsc  Sort = "scheduled_at_asc"
+	SortScheduledAtDesc Sort = "scheduled_at_desc"
+)
+
+func (s Sort) Valid() bool {
+	return s == SortScheduledAtAsc || s == SortScheduledAtDesc
+}
+
+// AppointmentFilter — отбор приёмов для расписания врача и регистратуры.
+// Пустое поле — без условия. Время приёма — scheduled_at, у живой очереди —
+// момент постановки в очередь.
+type AppointmentFilter struct {
+	DoctorID *int64
+	From, To *time.Time
+	Status   *Status
+	Sort     Sort
+}
+
+// DoctorLoad — сколько приёмов у врача за период (без отменённых).
+type DoctorLoad struct {
+	DoctorID         int64
+	FullName         string
+	AppointmentCount int
+}
+
+// ServiceStat — сколько раз услуга оказана за период (проведённые приёмы).
+type ServiceStat struct {
+	ServiceID    int64
+	Name         string
+	BookingCount int
+}

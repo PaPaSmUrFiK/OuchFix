@@ -7,6 +7,7 @@ enum VisitType { SCHEDULED WALK_IN }
 enum PaymentStatus { PENDING PAID FAILED }
 enum PaymentMethod { CASH CARD ONLINE }
 enum NotificationStatus { PENDING SENT READ FAILED }
+enum AppointmentSort { SCHEDULED_AT_ASC SCHEDULED_AT_DESC }
 
 type User {
   id: ID!
@@ -219,7 +220,7 @@ type Query {
   myAppointments(status: AppointmentStatus): [Appointment!]!
   payments(patientId: ID): [Payment!]!
   myNotifications(status: NotificationStatus): [Notification!]!
-  appointments(doctorId: ID, date: String, status: AppointmentStatus): [Appointment!]!
+  appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
   doctorLoad(from: String!, to: String!): [DoctorLoad!]!
   popularServices(from: String!, to: String!, limit: Int): [ServiceStat!]!
 }
