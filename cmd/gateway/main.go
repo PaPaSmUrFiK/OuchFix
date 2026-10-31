@@ -1,0 +1,34 @@
+package main
+
+import (
+	"fmt"
+	_ "time/tzdata" // зоны для APP_TIMEZONE и на Windows без системной базы
+
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/app"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/config"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/container"
+	"github.com/PaPaSmUrFiK/OuchFix/pkg/logging"
+	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
+)
+
+func main() {
+	if err := run(); err != nil {
+		logging.Fatal("gateway stopped with error", "error", err)
+	}
+}
+
+func run() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	if err := logging.SetLevel(cfg.LogLevel); err != nil {
+		return fmt.Errorf("apply log level: %w", err)
+	}
+
+	ctx, stop := httpserver.SignalContext()
+	defer stop()
+
+	return app.Run(ctx, container.New(cfg))
+}

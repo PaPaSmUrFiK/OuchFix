@@ -1,0 +1,141 @@
+# Поднять всё: docker compose up -d --build
+# GraphQL: http://localhost:8080/graphql, Postgres снаружи: localhost:5433.
+services:
+  iam:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-iam
+    expose:
+      - 8081
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+      IAM_PORT: 8081
+      IAM_POSTGRES_DSN: postgres://ouchfix_iam:ouchfix_iam@postgres:5432/ouchfix?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/apps/iam"]
+
+  catalog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-catalog
+    expose:
+      - 8082
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+      CATALOG_PORT: 8082
+      CATALOG_POSTGRES_DSN: postgres://ouchfix_catalog:ouchfix_catalog@postgres:5432/ouchfix?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/apps/catalog"]
+
+  appointment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-appointment
+    expose:
+      - 8083
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+      APPOINTMENT_PORT: 8083
+      APPOINTMENT_POSTGRES_DSN: postgres://ouchfix_appointment:ouchfix_appointment@postgres:5432/ouchfix?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/apps/appointment"]
+
+  payment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-payment
+    expose:
+      - 8084
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+      PAYMENT_PORT: 8084
+      PAYMENT_POSTGRES_DSN: postgres://ouchfix_payment:ouchfix_payment@postgres:5432/ouchfix?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/apps/payment"]
+
+  notification:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-notification
+    expose:
+      - 8085
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Minsk}
+      NOTIFICATION_PORT: 8085
+      NOTIFICATION_POSTGRES_DSN: postgres://ouchfix_notification:ouchfix_notification@postgres:5432/ouchfix?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/apps/notification"]
+
+  # Gateway без доступа к БД: только базовые адреса сервисов, запросы проксирует.
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouchfix:latest
+    container_name: ouchfix-gateway
+    expose:
+      - 8080
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GATEWAY_PORT: 8080
+      GATEWAY_SERVICES_TIMEOUT: ${GATEWAY_SERVICES_TIMEOUT:-5s}
+      GATEWAY_TEST_USER_ID: ${GATEWAY_TEST_USER_ID:-5}
+      IAM_BASE_URL: http://iam:8081
+      CATALOG_BASE_URL: http://catalog:8082
+      APPOINTMENT_BASE_URL: http://appointment:8083
+      PAYMENT_BASE_URL: http://payment:8084
+      NOTIFICATION_BASE_URL: http://notification:8085
+    entrypoint: ["/apps/gateway"]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ouchfix-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ouchfix
+      POSTGRES_PASSWORD: ouchfix
+      POSTGRES_DB: ouchfix
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ouchfix_postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ouchfix_postgres_data:

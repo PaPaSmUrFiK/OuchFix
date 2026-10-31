@@ -1,0 +1,245 @@
+# GraphQL schema внешнего API Gateway (ЛР2). Меняется только по согласованию.
+
+enum RoleName { PATIENT DOCTOR ADMIN }
+enum SlotStatus { FREE BUSY CANCELLED }
+enum AppointmentStatus { SCHEDULED QUEUE COMPLETED CANCELLED NO_SHOW }
+enum VisitType { SCHEDULED WALK_IN }
+enum PaymentStatus { PENDING PAID FAILED }
+enum PaymentMethod { CASH CARD ONLINE }
+enum NotificationStatus { PENDING SENT READ FAILED }
+
+type User {
+  id: ID!
+  email: String!
+  fullName: String!
+  phone: String
+  role: Role!
+}
+
+type Role {
+  id: ID!
+  name: RoleName!
+  permissions: [String!]!
+}
+
+type Patient {
+  id: ID!
+  fullName: String!
+  birthDate: String
+  gender: String
+  phone: String
+  address: String
+}
+
+type Doctor {
+  id: ID!
+  fullName: String!
+  office: String
+  specialty: Specialty!
+}
+
+type Specialty {
+  id: ID!
+  name: String!
+}
+
+type MedicalService {
+  id: ID!
+  name: String!
+  price: Float!
+  durationMin: Int
+}
+
+type Medication {
+  id: ID!
+  name: String!
+  form: String
+  unit: String!
+  stockQty: Float!
+}
+
+type ScheduleSlot {
+  id: ID!
+  doctorId: ID!
+  startsAt: String!
+  endsAt: String!
+  status: SlotStatus!
+}
+
+type Appointment {
+  id: ID!
+  patientId: ID!
+  doctorId: ID!
+  slotId: ID
+  serviceId: ID
+  status: AppointmentStatus!
+  visitType: VisitType!
+  scheduledAt: String
+  conclusion: String
+  diagnoses: [Diagnosis!]!
+  prescriptions: [Prescription!]!
+}
+
+type Diagnosis {
+  id: ID!
+  code: String
+  description: String!
+}
+
+type Prescription {
+  id: ID!
+  text: String!
+  medicationId: ID
+}
+
+type Payment {
+  id: ID!
+  appointmentId: ID!
+  patientId: ID!
+  serviceId: ID
+  amount: Float!
+  method: PaymentMethod!
+  status: PaymentStatus!
+  paidAt: String
+}
+
+type Notification {
+  id: ID!
+  title: String!
+  body: String!
+  status: NotificationStatus!
+  relatedType: String
+  relatedId: ID
+  createdAt: String!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+input RegisterPatientInput {
+  email: String!
+  password: String!
+  fullName: String!
+  phone: String
+  birthDate: String
+  gender: String
+  address: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input CreateSlotsInput {
+  doctorId: ID!
+  startsAt: String!
+  endsAt: String!
+}
+
+input UpdateSlotsInput {
+  slotIds: [ID!]!
+  startsAt: String
+  endsAt: String
+}
+
+input BookAppointmentInput {
+  patientId: ID!
+  doctorId: ID!
+  slotId: ID!
+  serviceId: ID
+}
+
+input WalkInAppointmentInput {
+  patientId: ID!
+  doctorId: ID!
+  serviceId: ID
+}
+
+input RescheduleAppointmentInput {
+  appointmentId: ID!
+  newSlotId: ID!
+}
+
+input CompleteAppointmentInput {
+  appointmentId: ID!
+  serviceId: ID
+  conclusion: String
+}
+
+input AddDiagnosisInput {
+  appointmentId: ID!
+  code: String
+  description: String!
+}
+
+input AddPrescriptionInput {
+  appointmentId: ID!
+  text: String!
+  medicationId: ID
+}
+
+input DispenseMedicationInput {
+  medicationId: ID!
+  patientId: ID!
+  appointmentId: ID
+  quantity: Float!
+}
+
+input CreatePaymentInput {
+  appointmentId: ID!
+  patientId: ID!
+  serviceId: ID
+  amount: Float!
+  method: PaymentMethod!
+}
+
+type DoctorLoad {
+  doctorId: ID!
+  fullName: String!
+  appointmentCount: Int!
+}
+
+type ServiceStat {
+  serviceId: ID!
+  name: String!
+  bookingCount: Int!
+}
+
+type Query {
+  me: User!
+  specialties: [Specialty!]!
+  doctors(specialtyId: ID): [Doctor!]!
+  medicalServices: [MedicalService!]!
+  medications: [Medication!]!
+  freeSlots(doctorId: ID!, date: String!): [ScheduleSlot!]!
+  appointment(id: ID!): Appointment
+  myAppointments(status: AppointmentStatus): [Appointment!]!
+  payments(patientId: ID): [Payment!]!
+  myNotifications(status: NotificationStatus): [Notification!]!
+  appointments(doctorId: ID, date: String, status: AppointmentStatus): [Appointment!]!
+  doctorLoad(from: String!, to: String!): [DoctorLoad!]!
+  popularServices(from: String!, to: String!, limit: Int): [ServiceStat!]!
+}
+
+type Mutation {
+  registerPatient(input: RegisterPatientInput!): AuthPayload!
+  login(input: LoginInput!): AuthPayload!
+  createDoctorAccount(email: String!, password: String!, fullName: String!, specialtyId: ID!, office: String): User!
+  createSlots(input: CreateSlotsInput!): [ScheduleSlot!]!
+  updateSlots(input: UpdateSlotsInput!): [ScheduleSlot!]!
+  cancelSlots(slotIds: [ID!]!): [ScheduleSlot!]!
+  bookAppointment(input: BookAppointmentInput!): Appointment!
+  createWalkInAppointment(input: WalkInAppointmentInput!): Appointment!
+  cancelAppointment(id: ID!): Appointment!
+  rescheduleAppointment(input: RescheduleAppointmentInput!): Appointment!
+  completeAppointment(input: CompleteAppointmentInput!): Appointment!
+  addDiagnosis(input: AddDiagnosisInput!): Diagnosis!
+  addPrescription(input: AddPrescriptionInput!): Prescription!
+  upsertMedication(name: String!, form: String, unit: String!, stockQty: Float!): Medication!
+  dispenseMedication(input: DispenseMedicationInput!): Medication!
+  createPayment(input: CreatePaymentInput!): Payment!
+  markNotificationRead(id: ID!): Notification!
+}

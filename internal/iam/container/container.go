@@ -1,0 +1,47 @@
+package container
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/jmoiron/sqlx"
+
+	"github.com/PaPaSmUrFiK/OuchFix/internal/iam/config"
+	iamrepo "github.com/PaPaSmUrFiK/OuchFix/internal/iam/repository/postgres"
+	"github.com/PaPaSmUrFiK/OuchFix/pkg/storage/postgres"
+)
+
+// Container — composition root IAM-сервиса. В ЛР3 он только владеет схемой iam
+// (миграции и сид); регистрация, вход и права — ЛР5.
+type Container struct {
+	Config *config.Config
+	db     *sqlx.DB
+}
+
+func New(ctx context.Context, cfg *config.Config) (*Container, error) {
+	c := &Container{Config: cfg}
+
+	db, err := postgres.New(ctx, cfg.DB)
+	if err != nil {
+		return nil, fmt.Errorf("new postgres: %w", err)
+	}
+	c.db = db
+
+	if err := iamrepo.Migrate(ctx, db); err != nil {
+		closeErr := db.Close()
+		if closeErr != nil {
+			return nil, fmt.Errorf("migrate: %w (close: %s)", err, closeErr)
+		}
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+
+	return c, nil
+}
+
+func (c *Container) Close() error {
+	if c.db == nil {
+		return nil
+	}
+
+	return c.db.Close()
+}
