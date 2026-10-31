@@ -142,6 +142,40 @@ func New(svc *service.AppointmentService, loc *time.Location) func(fiber.Router)
 			in := service.CompleteInput{AppointmentID: id, ServiceID: serviceID, Conclusion: req.Conclusion}
 			return replyAppointment(c, loc)(svc.Complete(c.Context(), in))
 		})
+		router.Post("/appointments/:id/diagnoses", func(c fiber.Ctx) error {
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			var req diagnosisRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			d, err := svc.AddDiagnosis(c.Context(), service.DiagnosisInput{AppointmentID: id, Code: req.Code, Description: req.Description})
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, toDiagnosis(d), nil)
+		})
+		router.Post("/appointments/:id/prescriptions", func(c fiber.Ctx) error {
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			var req prescriptionRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			medicationID, err := httpserver.ParseOptionalID("medicationId", req.MedicationID)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			p, err := svc.AddPrescription(c.Context(), service.PrescriptionInput{AppointmentID: id, Text: req.Text, MedicationID: medicationID})
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, toPrescription(p), nil)
+		})
 	}
 }
 

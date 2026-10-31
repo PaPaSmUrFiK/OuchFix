@@ -30,6 +30,8 @@ type AppointmentRepository interface {
 	HasQueued(ctx context.Context, patientID, doctorID int64) (bool, error)
 	InsertAppointment(ctx context.Context, a domain.Appointment) (*domain.Appointment, error)
 	UpdateAppointment(ctx context.Context, a domain.Appointment) error
+	InsertDiagnosis(ctx context.Context, d domain.Diagnosis) (*domain.Diagnosis, error)
+	InsertPrescription(ctx context.Context, p domain.Prescription) (*domain.Prescription, error)
 }
 
 // CatalogClient — то, что Appointment спрашивает у Catalog (CatalogGrpc).
@@ -37,6 +39,7 @@ type CatalogClient interface {
 	GetDoctor(ctx context.Context, doctorID int64) (*catalog.DoctorReply, error)
 	GetPatient(ctx context.Context, patientID int64) (*catalog.PatientReply, error)
 	GetMedicalService(ctx context.Context, serviceID int64) (*catalog.ServiceReply, error)
+	GetMedication(ctx context.Context, medicationID int64) (*catalog.MedicationReply, error)
 }
 
 type AppointmentService struct {

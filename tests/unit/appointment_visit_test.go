@@ -173,3 +173,33 @@ func TestCompleteRequiresServiceAndActiveStatus(t *testing.T) {
 		t.Fatalf("cancel completed: want ErrFailedPrecondition, got %v", err)
 	}
 }
+
+func TestMedicalRecords(t *testing.T) {
+	ctx := context.Background()
+	repo, svc := newVisitFixture(t)
+	repo.appointments = map[int64]domain.Appointment{
+		1: {ID: 1, PatientID: 1, DoctorID: 1, Status: domain.StatusQueue},
+		2: {ID: 2, PatientID: 1, DoctorID: 1, Status: domain.StatusCancelled},
+	}
+
+	d, err := svc.AddDiagnosis(ctx, service.DiagnosisInput{AppointmentID: 1, Code: ptr("  "), Description: " ОРВИ "})
+	if err != nil || d.Description != "ОРВИ" || d.Code != nil {
+		t.Fatalf("diagnosis: %+v %v", d, err)
+	}
+	if _, err := svc.AddDiagnosis(ctx, service.DiagnosisInput{AppointmentID: 1, Description: " "}); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
+		t.Fatalf("empty description: %v", err)
+	}
+	if _, err := svc.AddDiagnosis(ctx, service.DiagnosisInput{AppointmentID: 2, Description: "x"}); !errors.Is(err, pkgerrors.ErrFailedPrecondition) {
+		t.Fatalf("cancelled: %v", err)
+	}
+	if _, err := svc.AddPrescription(ctx, service.PrescriptionInput{AppointmentID: 1, Text: "x", MedicationID: ptr(int64(99))}); !errors.Is(err, pkgerrors.ErrNotFound) {
+		t.Fatalf("unknown medication: %v", err)
+	}
+	p, err := svc.AddPrescription(ctx, service.PrescriptionInput{AppointmentID: 1, Text: "Парацетамол", MedicationID: ptr(int64(1))})
+	if err != nil || *p.MedicationID != 1 {
+		t.Fatalf("prescription: %+v %v", p, err)
+	}
+	if len(repo.diagnoses) != 1 || len(repo.prescriptions) != 1 {
+		t.Fatalf("failed operations must not save records")
+	}
+}

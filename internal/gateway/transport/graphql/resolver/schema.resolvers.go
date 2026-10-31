@@ -86,12 +86,28 @@ func (r *mutationResolver) CompleteAppointment(ctx context.Context, input model.
 
 // AddDiagnosis is the resolver for the addDiagnosis field.
 func (r *mutationResolver) AddDiagnosis(ctx context.Context, input model.AddDiagnosisInput) (*model.Diagnosis, error) {
-	return nil, notImplemented("addDiagnosis", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	var out model.Diagnosis
+	if err := r.services.Appointment.Post(ctx, "/appointments/"+appointmentID+"/diagnoses", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // AddPrescription is the resolver for the addPrescription field.
 func (r *mutationResolver) AddPrescription(ctx context.Context, input model.AddPrescriptionInput) (*model.Prescription, error) {
-	return nil, notImplemented("addPrescription", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	var out model.Prescription
+	if err := r.services.Appointment.Post(ctx, "/appointments/"+appointmentID+"/prescriptions", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // UpsertMedication is the resolver for the upsertMedication field.

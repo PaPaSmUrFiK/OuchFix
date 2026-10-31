@@ -72,3 +72,31 @@ func (r *AppointmentRepository) UpdateAppointment(ctx context.Context, a domain.
 	}
 	return postgres.RequireAffected(res, fmt.Sprintf("appointment %d", a.ID))
 }
+
+func (r *AppointmentRepository) InsertDiagnosis(ctx context.Context, d domain.Diagnosis) (*domain.Diagnosis, error) {
+	const query = `
+		INSERT INTO appointment.diagnosis (appointment_id, code, description)
+		VALUES ($1, $2, $3)
+		RETURNING id, appointment_id, code, description, created_at`
+
+	var row models.Diagnosis
+	if err := sqlx.GetContext(ctx, postgres.Querier(ctx, r.db), &row, query, d.AppointmentID, d.Code, d.Description); err != nil {
+		return nil, fmt.Errorf("insert diagnosis: %w", postgres.WrapDB(err))
+	}
+	out := row.ToDomain()
+	return &out, nil
+}
+
+func (r *AppointmentRepository) InsertPrescription(ctx context.Context, p domain.Prescription) (*domain.Prescription, error) {
+	const query = `
+		INSERT INTO appointment.prescription (appointment_id, text, medication_id)
+		VALUES ($1, $2, $3)
+		RETURNING id, appointment_id, text, medication_id, created_at`
+
+	var row models.Prescription
+	if err := sqlx.GetContext(ctx, postgres.Querier(ctx, r.db), &row, query, p.AppointmentID, p.Text, p.MedicationID); err != nil {
+		return nil, fmt.Errorf("insert prescription: %w", postgres.WrapDB(err))
+	}
+	out := row.ToDomain()
+	return &out, nil
+}

@@ -68,6 +68,18 @@ func (f *fakeAppointmentRepo) UpdateAppointment(_ context.Context, a domain.Appo
 	return nil
 }
 
+func (f *fakeAppointmentRepo) InsertDiagnosis(_ context.Context, d domain.Diagnosis) (*domain.Diagnosis, error) {
+	d.ID = int64(len(f.diagnoses) + 1)
+	f.diagnoses = append(f.diagnoses, d)
+	return &d, nil
+}
+
+func (f *fakeAppointmentRepo) InsertPrescription(_ context.Context, p domain.Prescription) (*domain.Prescription, error) {
+	p.ID = int64(len(f.prescriptions) + 1)
+	f.prescriptions = append(f.prescriptions, p)
+	return &p, nil
+}
+
 // InTx в fake — без отката: тесты проверяют, что при ошибке запись не делалась.
 func (f *fakeAppointmentRepo) InTx(ctx context.Context, fn func(context.Context) error) error {
 	f.inTx = true

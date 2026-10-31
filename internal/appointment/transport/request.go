@@ -89,3 +89,13 @@ type completeRequest struct {
 	ServiceID  *string `json:"serviceId"`
 	Conclusion *string `json:"conclusion"`
 }
+
+type diagnosisRequest struct {
+	Code        *string `json:"code"`
+	Description string  `json:"description"`
+}
+
+type prescriptionRequest struct {
+	Text         string  `json:"text"`
+	MedicationID *string `json:"medicationId"`
+}
