@@ -20,7 +20,12 @@ func New(svc *service.PaymentService, loc *time.Location) func(fiber.Router) {
 			if err != nil {
 				return httpserver.WriteError(c, err)
 			}
-			items, err := svc.ListPayments(c.Context(), patientID)
+			items, err := svc.ListPayments(c.Context(), service.ListInput{
+				PatientID: patientID,
+				Status:    optionalQuery(c, "status"),
+				From:      optionalQuery(c, "from"),
+				To:        optionalQuery(c, "to"),
+			})
 			return httpserver.Reply(c, httpserver.MapList(items, toPayment(loc)), err)
 		})
 		router.Post("/payments", func(c fiber.Ctx) error {
@@ -46,4 +51,12 @@ func New(svc *service.PaymentService, loc *time.Location) func(fiber.Router) {
 			return httpserver.Reply(c, summaryResponse{Count: sum.Count, Total: sum.Total}, nil)
 		})
 	}
+}
+
+// optionalQuery — query-параметр или nil, если его нет.
+func optionalQuery(c fiber.Ctx, name string) *string {
+	if v := c.Query(name); v != "" {
+		return &v
+	}
+	return nil
 }

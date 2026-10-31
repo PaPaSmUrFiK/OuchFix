@@ -19,6 +19,7 @@ import (
 type fakePaymentRepo struct {
 	calls       int
 	lastPatient *int64
+	lastFilter  paymentdomain.Filter
 
 	paid           map[int64]bool
 	inserted       []paymentdomain.Payment
@@ -40,9 +41,10 @@ func (f *fakePaymentRepo) Summary(_ context.Context, from, to time.Time) (*payme
 	return &paymentdomain.Summary{Count: 1, Total: 35}, nil
 }
 
-func (f *fakePaymentRepo) List(_ context.Context, patientID *int64) ([]paymentdomain.Payment, error) {
+func (f *fakePaymentRepo) List(_ context.Context, filter paymentdomain.Filter) ([]paymentdomain.Payment, error) {
 	f.calls++
-	f.lastPatient = patientID
+	f.lastPatient = filter.PatientID
+	f.lastFilter = filter
 	return []paymentdomain.Payment{}, nil
 }
 
@@ -50,20 +52,43 @@ func TestPaymentsFilterAndValidation(t *testing.T) {
 	repo := &fakePaymentRepo{}
 	svc := paymentsvc.NewPaymentService(repo, catalog.NewStub(), appointment.NewStub(), time.UTC)
 
-	if _, err := svc.ListPayments(context.Background(), nil); err != nil || repo.lastPatient != nil {
+	if _, err := svc.ListPayments(context.Background(), paymentsvc.ListInput{}); err != nil || repo.lastPatient != nil {
 		t.Fatalf("nil patient must list all: err %v", err)
 	}
 
 	bad := int64(-5)
-	if _, err := svc.ListPayments(context.Background(), &bad); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
+	if _, err := svc.ListPayments(context.Background(), paymentsvc.ListInput{PatientID: &bad}); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
 		t.Fatalf("want ErrInvalidArgument, got %v", err)
 	}
 	unknown := int64(404)
-	if _, err := svc.ListPayments(context.Background(), &unknown); !errors.Is(err, pkgerrors.ErrNotFound) {
+	if _, err := svc.ListPayments(context.Background(), paymentsvc.ListInput{PatientID: &unknown}); !errors.Is(err, pkgerrors.ErrNotFound) {
 		t.Fatalf("want ErrNotFound for unknown patient, got %v", err)
+	}
+	str := func(v string) *string { return &v }
+	for _, bad := range []paymentsvc.ListInput{
+		{Status: str("REFUNDED")},
+		{From: str("01.11.2026")},
+		{To: str("2026-13-01")},
+		{From: str("2026-11-10"), To: str("2026-11-09")},
+	} {
+		if _, err := svc.ListPayments(context.Background(), bad); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
+			t.Fatalf("%+v: want ErrInvalidArgument, got %v", bad, err)
+		}
 	}
 	if repo.calls != 1 {
 		t.Fatalf("repository must not be called on invalid input, calls %d", repo.calls)
+	}
+
+	if _, err := svc.ListPayments(context.Background(), paymentsvc.ListInput{
+		Status: str("PAID"), From: str("2026-11-01"), To: str("2026-11-01"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	f := repo.lastFilter
+	if f.Status == nil || *f.Status != paymentdomain.StatusPaid ||
+		!f.From.Equal(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)) ||
+		!f.To.Equal(time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("filter = %+v", f)
 	}
 }
 

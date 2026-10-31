@@ -7,15 +7,15 @@ import (
 
 // Тела запросов в форме аргументов GraphQL: id — строки.
 
-type upsertMedicationRequest struct {
+type receiveMedicationRequest struct {
 	Name     string  `json:"name"`
 	Form     *string `json:"form"`
 	Unit     string  `json:"unit"`
-	StockQty float64 `json:"stockQty"`
+	Quantity float64 `json:"quantity"`
 }
 
-func (r upsertMedicationRequest) toDomain() domain.Medication {
-	return domain.Medication{Name: r.Name, Form: r.Form, Unit: r.Unit, StockQty: r.StockQty}
+func (r receiveMedicationRequest) toDomain() domain.Medication {
+	return domain.Medication{Name: r.Name, Form: r.Form, Unit: r.Unit}
 }
 
 type dispenseRequest struct {

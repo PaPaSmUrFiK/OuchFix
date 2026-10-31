@@ -15,8 +15,9 @@ import (
 // maxQty — предел NUMERIC(12,2) в catalog.medication.
 const maxQty = 1e10
 
-// UpsertMedication — приход/корректировка склада: препарат ищется по названию.
-func (s *CatalogService) UpsertMedication(ctx context.Context, m domain.Medication) (*domain.Medication, error) {
+// ReceiveMedication — приход препарата на склад: препарат ищется по названию,
+// остаток увеличивается на qty; неизвестный препарат заводится с остатком qty.
+func (s *CatalogService) ReceiveMedication(ctx context.Context, m domain.Medication, qty float64) (*domain.Medication, error) {
 	m.Name = strings.TrimSpace(m.Name)
 	m.Unit = strings.TrimSpace(m.Unit)
 	if m.Form != nil {
@@ -33,10 +34,10 @@ func (s *CatalogService) UpsertMedication(ctx context.Context, m domain.Medicati
 		return nil, fmt.Errorf("%w: unit — от 1 до 32 символов", pkgerrors.ErrInvalidArgument)
 	case m.Form != nil && utf8.RuneCountInString(*m.Form) > 128:
 		return nil, fmt.Errorf("%w: form — не больше 128 символов", pkgerrors.ErrInvalidArgument)
-	case !validQty(m.StockQty) && m.StockQty != 0:
-		return nil, fmt.Errorf("%w: stockQty должно быть от 0 до 10^10", pkgerrors.ErrInvalidArgument)
+	case !validQty(qty):
+		return nil, fmt.Errorf("%w: quantity прихода должно быть больше нуля и меньше 10^10", pkgerrors.ErrInvalidArgument)
 	}
-	return s.repo.UpsertMedication(ctx, m)
+	return s.repo.ReceiveMedication(ctx, m, qty)
 }
 
 // DispenseMedication — выдача пациенту: остаток уменьшается атомарно, выдача

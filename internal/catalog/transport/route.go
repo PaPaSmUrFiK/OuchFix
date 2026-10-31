@@ -44,12 +44,12 @@ func New(svc *service.CatalogService) func(fiber.Router) {
 			items, err := svc.ListMedications(c.Context())
 			return httpserver.Reply(c, httpserver.MapList(items, toMedication), err)
 		})
-		router.Post("/medications", func(c fiber.Ctx) error {
-			var req upsertMedicationRequest
+		router.Post("/medications/receive", func(c fiber.Ctx) error {
+			var req receiveMedicationRequest
 			if err := httpserver.BindJSON(c, &req); err != nil {
 				return httpserver.WriteError(c, err)
 			}
-			m, err := svc.UpsertMedication(c.Context(), req.toDomain())
+			m, err := svc.ReceiveMedication(c.Context(), req.toDomain(), req.Quantity)
 			return replyMedication(c, m, err)
 		})
 		router.Post("/medications/dispense", func(c fiber.Ctx) error {

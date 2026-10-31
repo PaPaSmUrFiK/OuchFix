@@ -74,7 +74,8 @@ func (f *fakeStockRepo) InsertDispense(_ context.Context, d domain.Dispense) err
 	return nil
 }
 
-func (f *fakeStockRepo) UpsertMedication(_ context.Context, m domain.Medication) (*domain.Medication, error) {
+func (f *fakeStockRepo) ReceiveMedication(_ context.Context, m domain.Medication, qty float64) (*domain.Medication, error) {
+	m.StockQty = qty
 	f.upserted = &m
 	return &m, nil
 }
@@ -112,24 +113,32 @@ func TestDispenseMedication(t *testing.T) {
 	}
 }
 
-func TestUpsertMedicationValidation(t *testing.T) {
+func TestReceiveMedicationValidation(t *testing.T) {
 	repo := &fakeStockRepo{}
 	svc := service.NewCatalogService(repo)
 	ctx := context.Background()
 
 	blank := "  "
-	m, err := svc.UpsertMedication(ctx, domain.Medication{Name: " Аспирин ", Form: &blank, Unit: " шт ", StockQty: 0})
-	if err != nil || m.Name != "Аспирин" || m.Unit != "шт" || m.Form != nil {
-		t.Fatalf("upsert: %v %+v", err, m)
+	m, err := svc.ReceiveMedication(ctx, domain.Medication{Name: " Аспирин ", Form: &blank, Unit: " шт "}, 3)
+	if err != nil || m.Name != "Аспирин" || m.Unit != "шт" || m.Form != nil || m.StockQty != 3 {
+		t.Fatalf("receive: %v %+v", err, m)
 	}
-	for _, bad := range []domain.Medication{
-		{Name: "", Unit: "шт"},
-		{Name: "A", Unit: " "},
-		{Name: "A", Unit: "шт", StockQty: -1},
-		{Name: "A", Unit: "шт", StockQty: math.NaN()},
+	repo.upserted = nil
+	for _, bad := range []struct {
+		m   domain.Medication
+		qty float64
+	}{
+		{domain.Medication{Name: "", Unit: "шт"}, 1},
+		{domain.Medication{Name: "A", Unit: " "}, 1},
+		{domain.Medication{Name: "A", Unit: "шт"}, 0},
+		{domain.Medication{Name: "A", Unit: "шт"}, -1},
+		{domain.Medication{Name: "A", Unit: "шт"}, math.NaN()},
 	} {
-		if _, err := svc.UpsertMedication(ctx, bad); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
-			t.Fatalf("%+v: %v", bad, err)
+		if _, err := svc.ReceiveMedication(ctx, bad.m, bad.qty); !errors.Is(err, pkgerrors.ErrInvalidArgument) {
+			t.Fatalf("%+v %v: %v", bad.m, bad.qty, err)
 		}
+	}
+	if repo.upserted != nil {
+		t.Fatal("repository must not be called on invalid input")
 	}
 }

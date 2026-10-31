@@ -17,17 +17,18 @@ func (r *CatalogRepository) InTx(ctx context.Context, fn func(context.Context) e
 	return postgres.InTx(ctx, r.db, fn)
 }
 
-// UpsertMedication создаёт препарат или обновляет существующий с тем же названием.
-func (r *CatalogRepository) UpsertMedication(ctx context.Context, m domain.Medication) (*domain.Medication, error) {
+// ReceiveMedication — приход на склад: новый препарат создаётся с остатком qty,
+// у существующего (по названию) остаток увеличивается на qty.
+func (r *CatalogRepository) ReceiveMedication(ctx context.Context, m domain.Medication, qty float64) (*domain.Medication, error) {
 	const query = `
 		INSERT INTO catalog.medication (name, form, unit, stock_qty)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (name) DO UPDATE
-		SET form = EXCLUDED.form, unit = EXCLUDED.unit, stock_qty = EXCLUDED.stock_qty` + medicationReturning
+		SET form = EXCLUDED.form, unit = EXCLUDED.unit, stock_qty = catalog.medication.stock_qty + EXCLUDED.stock_qty` + medicationReturning
 
 	var row models.Medication
-	if err := sqlx.GetContext(ctx, postgres.Querier(ctx, r.db), &row, query, m.Name, m.Form, m.Unit, m.StockQty); err != nil {
-		return nil, fmt.Errorf("upsert medication %q: %w", m.Name, postgres.WrapDB(err))
+	if err := sqlx.GetContext(ctx, postgres.Querier(ctx, r.db), &row, query, m.Name, m.Form, m.Unit, qty); err != nil {
+		return nil, fmt.Errorf("receive medication %q: %w", m.Name, postgres.WrapDB(err))
 	}
 	out := row.ToDomain()
 	return &out, nil

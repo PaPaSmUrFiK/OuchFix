@@ -19,7 +19,7 @@ type CatalogRepository interface {
 	GetMedication(ctx context.Context, id int64) (*domain.Medication, error)
 
 	InTx(ctx context.Context, fn func(context.Context) error) error
-	UpsertMedication(ctx context.Context, m domain.Medication) (*domain.Medication, error)
+	ReceiveMedication(ctx context.Context, m domain.Medication, qty float64) (*domain.Medication, error)
 	TakeStock(ctx context.Context, medicationID int64, qty float64) (*domain.Medication, error)
 	InsertDispense(ctx context.Context, d domain.Dispense) error
 }

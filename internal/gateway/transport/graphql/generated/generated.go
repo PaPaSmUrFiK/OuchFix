@@ -102,10 +102,10 @@ type ComplexityRoot struct {
 		DispenseMedication      func(childComplexity int, input model.DispenseMedicationInput) int
 		Login                   func(childComplexity int, input model.LoginInput) int
 		MarkNotificationRead    func(childComplexity int, id string) int
+		ReceiveMedication       func(childComplexity int, name string, form *string, unit string, quantity float64) int
 		RegisterPatient         func(childComplexity int, input model.RegisterPatientInput) int
 		RescheduleAppointment   func(childComplexity int, input model.RescheduleAppointmentInput) int
 		UpdateSlots             func(childComplexity int, input model.UpdateSlotsInput) int
-		UpsertMedication        func(childComplexity int, name string, form *string, unit string, stockQty float64) int
 	}
 
 	Notification struct {
@@ -161,7 +161,7 @@ type ComplexityRoot struct {
 		MyAppointments  func(childComplexity int, status *model.AppointmentStatus) int
 		MyNotifications func(childComplexity int, status *model.NotificationStatus) int
 		PaymentSummary  func(childComplexity int, from string, to string) int
-		Payments        func(childComplexity int, patientID *string) int
+		Payments        func(childComplexity int, patientID *string, status *model.PaymentStatus, from *string, to *string) int
 		PopularServices func(childComplexity int, from string, to string, limit *int32) int
 		Specialties     func(childComplexity int) int
 	}
@@ -218,7 +218,7 @@ type MutationResolver interface {
 	CompleteAppointment(ctx context.Context, input model.CompleteAppointmentInput) (*model.Appointment, error)
 	AddDiagnosis(ctx context.Context, input model.AddDiagnosisInput) (*model.Diagnosis, error)
 	AddPrescription(ctx context.Context, input model.AddPrescriptionInput) (*model.Prescription, error)
-	UpsertMedication(ctx context.Context, name string, form *string, unit string, stockQty float64) (*model.Medication, error)
+	ReceiveMedication(ctx context.Context, name string, form *string, unit string, quantity float64) (*model.Medication, error)
 	DispenseMedication(ctx context.Context, input model.DispenseMedicationInput) (*model.Medication, error)
 	CreatePayment(ctx context.Context, input model.CreatePaymentInput) (*model.Payment, error)
 	MarkNotificationRead(ctx context.Context, id string) (*model.Notification, error)
@@ -232,7 +232,7 @@ type QueryResolver interface {
 	FreeSlots(ctx context.Context, doctorID string, date string) ([]*model.ScheduleSlot, error)
 	Appointment(ctx context.Context, id string) (*model.Appointment, error)
 	MyAppointments(ctx context.Context, status *model.AppointmentStatus) ([]*model.Appointment, error)
-	Payments(ctx context.Context, patientID *string) ([]*model.Payment, error)
+	Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *string, to *string) ([]*model.Payment, error)
 	PaymentSummary(ctx context.Context, from string, to string) (*model.PaymentSummary, error)
 	MyNotifications(ctx context.Context, status *model.NotificationStatus) ([]*model.Notification, error)
 	Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error)
@@ -600,6 +600,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.MarkNotificationRead(childComplexity, args["id"].(string)), true
+	case "Mutation.receiveMedication":
+		if e.ComplexityRoot.Mutation.ReceiveMedication == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_receiveMedication_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ReceiveMedication(childComplexity, args["name"].(string), args["form"].(*string), args["unit"].(string), args["quantity"].(float64)), true
 	case "Mutation.registerPatient":
 		if e.ComplexityRoot.Mutation.RegisterPatient == nil {
 			break
@@ -633,17 +644,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateSlots(childComplexity, args["input"].(model.UpdateSlotsInput)), true
-	case "Mutation.upsertMedication":
-		if e.ComplexityRoot.Mutation.UpsertMedication == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_upsertMedication_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.UpsertMedication(childComplexity, args["name"].(string), args["form"].(*string), args["unit"].(string), args["stockQty"].(float64)), true
 
 	case "Notification.body":
 		if e.ComplexityRoot.Notification.Body == nil {
@@ -923,7 +923,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Payments(childComplexity, args["patientId"].(*string)), true
+		return e.ComplexityRoot.Query.Payments(childComplexity, args["patientId"].(*string), args["status"].(*model.PaymentStatus), args["from"].(*string), args["to"].(*string)), true
 	case "Query.popularServices":
 		if e.ComplexityRoot.Query.PopularServices == nil {
 			break
@@ -1377,7 +1377,7 @@ type Query {
   freeSlots(doctorId: ID!, date: String!): [ScheduleSlot!]!
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
-  payments(patientId: ID): [Payment!]!
+  payments(patientId: ID, status: PaymentStatus, from: String, to: String): [Payment!]!
   paymentSummary(from: String!, to: String!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
   appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
@@ -1399,7 +1399,7 @@ type Mutation {
   completeAppointment(input: CompleteAppointmentInput!): Appointment!
   addDiagnosis(input: AddDiagnosisInput!): Diagnosis!
   addPrescription(input: AddPrescriptionInput!): Prescription!
-  upsertMedication(name: String!, form: String, unit: String!, stockQty: Float!): Medication!
+  receiveMedication(name: String!, form: String, unit: String!, quantity: Float!): Medication!
   dispenseMedication(input: DispenseMedicationInput!): Medication!
   createPayment(input: CreatePaymentInput!): Payment!
   markNotificationRead(id: ID!): Notification!
@@ -1978,6 +1978,44 @@ func (ec *executionContext) field_Mutation_markNotificationRead_args(ctx context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_receiveMedication_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "form",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["form"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "unit",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["unit"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "quantity",
+		func(ctx context.Context, v any) (float64, error) {
+			return ec.unmarshalNFloat2float64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["quantity"] = arg3
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_registerPatient_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2017,44 +2055,6 @@ func (ec *executionContext) field_Mutation_updateSlots_args(ctx context.Context,
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_upsertMedication_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "form",
-		func(ctx context.Context, v any) (*string, error) {
-			return ec.unmarshalOString2ᚖstring(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["form"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "unit",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["unit"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "stockQty",
-		func(ctx context.Context, v any) (float64, error) {
-			return ec.unmarshalNFloat2float64(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["stockQty"] = arg3
 	return args, nil
 }
 
@@ -2243,6 +2243,30 @@ func (ec *executionContext) field_Query_payments_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["patientId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "status",
+		func(ctx context.Context, v any) (*model.PaymentStatus, error) {
+			return ec.unmarshalOPaymentStatus2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentStatus(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["status"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "from",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["from"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "to",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["to"] = arg3
 	return args, nil
 }
 
@@ -3694,17 +3718,17 @@ func (ec *executionContext) fieldContext_Mutation_addPrescription(ctx context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_upsertMedication(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_receiveMedication(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_upsertMedication(ctx, field)
+			return ec.fieldContext_Mutation_receiveMedication(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpsertMedication(ctx, fc.Args["name"].(string), fc.Args["form"].(*string), fc.Args["unit"].(string), fc.Args["stockQty"].(float64))
+			return ec.Resolvers.Mutation().ReceiveMedication(ctx, fc.Args["name"].(string), fc.Args["form"].(*string), fc.Args["unit"].(string), fc.Args["quantity"].(float64))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Medication) graphql.Marshaler {
@@ -3714,7 +3738,7 @@ func (ec *executionContext) _Mutation_upsertMedication(ctx context.Context, fiel
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Mutation_upsertMedication(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_receiveMedication(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -3731,7 +3755,7 @@ func (ec *executionContext) fieldContext_Mutation_upsertMedication(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_upsertMedication_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_receiveMedication_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4782,7 +4806,7 @@ func (ec *executionContext) _Query_payments(ctx context.Context, field graphql.C
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Payments(ctx, fc.Args["patientId"].(*string))
+			return ec.Resolvers.Query().Payments(ctx, fc.Args["patientId"].(*string), fc.Args["status"].(*model.PaymentStatus), fc.Args["from"].(*string), fc.Args["to"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Payment) graphql.Marshaler {
@@ -7796,9 +7820,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "upsertMedication":
+		case "receiveMedication":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_upsertMedication(ctx, field)
+				return ec._Mutation_receiveMedication(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -9672,6 +9696,22 @@ func (ec *executionContext) unmarshalONotificationStatus2ᚖgithubᚗcomᚋPaPaS
 }
 
 func (ec *executionContext) marshalONotificationStatus2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐNotificationStatus(ctx context.Context, sel ast.SelectionSet, v *model.NotificationStatus) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOPaymentStatus2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentStatus(ctx context.Context, v any) (*model.PaymentStatus, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.PaymentStatus)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPaymentStatus2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentStatus(ctx context.Context, sel ast.SelectionSet, v *model.PaymentStatus) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

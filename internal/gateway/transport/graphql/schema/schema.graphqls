@@ -223,7 +223,7 @@ type Query {
   freeSlots(doctorId: ID!, date: String!): [ScheduleSlot!]!
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
-  payments(patientId: ID): [Payment!]!
+  payments(patientId: ID, status: PaymentStatus, from: String, to: String): [Payment!]!
   paymentSummary(from: String!, to: String!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
   appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
@@ -245,7 +245,7 @@ type Mutation {
   completeAppointment(input: CompleteAppointmentInput!): Appointment!
   addDiagnosis(input: AddDiagnosisInput!): Diagnosis!
   addPrescription(input: AddPrescriptionInput!): Prescription!
-  upsertMedication(name: String!, form: String, unit: String!, stockQty: Float!): Medication!
+  receiveMedication(name: String!, form: String, unit: String!, quantity: Float!): Medication!
   dispenseMedication(input: DispenseMedicationInput!): Medication!
   createPayment(input: CreatePaymentInput!): Payment!
   markNotificationRead(id: ID!): Notification!

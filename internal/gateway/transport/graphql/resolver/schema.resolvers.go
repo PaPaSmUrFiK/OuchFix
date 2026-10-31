@@ -110,11 +110,11 @@ func (r *mutationResolver) AddPrescription(ctx context.Context, input model.AddP
 	return &out, nil
 }
 
-// UpsertMedication is the resolver for the upsertMedication field.
-func (r *mutationResolver) UpsertMedication(ctx context.Context, name string, form *string, unit string, stockQty float64) (*model.Medication, error) {
-	body := map[string]any{"name": name, "form": form, "unit": unit, "stockQty": stockQty}
+// ReceiveMedication is the resolver for the receiveMedication field.
+func (r *mutationResolver) ReceiveMedication(ctx context.Context, name string, form *string, unit string, quantity float64) (*model.Medication, error) {
+	body := map[string]any{"name": name, "form": form, "unit": unit, "quantity": quantity}
 	var out model.Medication
-	if err := r.services.Catalog.Post(ctx, "/medications", body, &out); err != nil {
+	if err := r.services.Catalog.Post(ctx, "/medications/receive", body, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -229,7 +229,7 @@ func (r *queryResolver) MyAppointments(ctx context.Context, status *model.Appoin
 }
 
 // Payments is the resolver for the payments field.
-func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*model.Payment, error) {
+func (r *queryResolver) Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *string, to *string) ([]*model.Payment, error) {
 	query := url.Values{}
 	if patientID != nil {
 		id, err := parseID("patientId", *patientID)
@@ -238,6 +238,9 @@ func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*mod
 		}
 		query.Set("patientId", id)
 	}
+	optionalQuery(query, "status", status)
+	optionalQuery(query, "from", from)
+	optionalQuery(query, "to", to)
 	var out []*model.Payment
 	return out, r.services.Payment.Get(ctx, "/payments", query, &out)
 }

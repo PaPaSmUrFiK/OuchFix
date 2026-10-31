@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
@@ -22,6 +23,7 @@ import (
 type fakeProxy struct {
 	responses map[string]string
 	errs      map[string]error
+	mu        sync.Mutex
 	calls     []string
 }
 
@@ -30,7 +32,9 @@ func (f *fakeProxy) Get(_ context.Context, path string, query url.Values, out an
 	if len(query) > 0 {
 		call += "?" + query.Encode()
 	}
+	f.mu.Lock()
 	f.calls = append(f.calls, call)
+	f.mu.Unlock()
 	if err, ok := f.errs[path]; ok {
 		return err
 	}
@@ -47,7 +51,9 @@ func (f *fakeProxy) Post(_ context.Context, path string, body any, out any) erro
 	if err != nil {
 		return err
 	}
+	f.mu.Lock()
 	f.calls = append(f.calls, "POST "+path+" "+string(raw))
+	f.mu.Unlock()
 	if err, ok := f.errs[path]; ok {
 		return err
 	}
@@ -264,16 +270,16 @@ func TestGraphQLAppointmentQueriesProxy(t *testing.T) {
 func TestGraphQLMedicationMutationsProxy(t *testing.T) {
 	h, f := newGatewayHandler(t, 5)
 	med := `{"id":"1","name":"Парацетамол","form":null,"unit":"шт","stockQty":5}`
-	f.catalog.responses["/medications"] = med
+	f.catalog.responses["/medications/receive"] = med
 	f.catalog.responses["/medications/dispense"] = med
 	q := `mutation {
-	  a: upsertMedication(name: "Парацетамол", unit: "шт", stockQty: 5) { id }
+	  a: receiveMedication(name: "Парацетамол", unit: "шт", quantity: 5) { id }
 	  b: dispenseMedication(input: {medicationId: "1", patientId: "2", quantity: 1.5}) { stockQty } }`
 	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
 		t.Fatalf("errors: %+v", resp.Errors)
 	}
 	want := []string{
-		`POST /medications {"form":null,"name":"Парацетамол","stockQty":5,"unit":"шт"}`,
+		`POST /medications/receive {"form":null,"name":"Парацетамол","quantity":5,"unit":"шт"}`,
 		`POST /medications/dispense {"medicationId":"1","patientId":"2","quantity":1.5}`,
 	}
 	if len(f.catalog.calls) != 2 || f.catalog.calls[0] != want[0] || f.catalog.calls[1] != want[1] {
