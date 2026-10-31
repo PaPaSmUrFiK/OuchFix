@@ -17,6 +17,8 @@ const (
 	codeNotFound       = "NOT_FOUND"
 	codeBadUserInput   = "BAD_USER_INPUT"
 	codeNotImplemented = "NOT_IMPLEMENTED"
+	codeConflict       = "CONFLICT"
+	codePrecondition   = "FAILED_PRECONDITION"
 	codeInternal       = "INTERNAL"
 )
 
@@ -40,6 +42,10 @@ func presentError(ctx context.Context, err error) *gqlerror.Error {
 		setCode(gqlErr, codeBadUserInput)
 	case errors.Is(err, pkgerrors.ErrNotImplemented):
 		setCode(gqlErr, codeNotImplemented)
+	case errors.Is(err, pkgerrors.ErrConflict):
+		setCode(gqlErr, codeConflict)
+	case errors.Is(err, pkgerrors.ErrFailedPrecondition):
+		setCode(gqlErr, codePrecondition)
 	default:
 		// Текст внутренних ошибок (SQL, сеть) наружу не отдаём, только в лог.
 		slog.ErrorContext(ctx, "graphql request failed", "path", gqlErr.Path.String(), "error", err)

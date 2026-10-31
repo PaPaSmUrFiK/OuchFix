@@ -29,6 +29,10 @@ func WriteError(c fiber.Ctx, err error) error {
 		status = fiber.StatusBadRequest
 	case errors.Is(err, pkgerrors.ErrNotImplemented):
 		status = fiber.StatusNotImplemented
+	case errors.Is(err, pkgerrors.ErrConflict):
+		status = fiber.StatusConflict
+	case errors.Is(err, pkgerrors.ErrFailedPrecondition):
+		status = fiber.StatusUnprocessableEntity
 	default:
 		slog.ErrorContext(c.Context(), "request failed", "path", c.Path(), "error", err)
 		return c.Status(status).JSON(ErrorBody{Error: internalMessage})
@@ -60,6 +64,14 @@ func QueryID(c fiber.Ctx, name string) (*int64, error) {
 		return nil, err
 	}
 	return &id, nil
+}
+
+// BindJSON декодирует тело запроса; битый JSON — ошибка аргумента.
+func BindJSON(c fiber.Ctx, out any) error {
+	if err := c.Bind().JSON(out); err != nil {
+		return fmt.Errorf("%w: некорректное тело запроса", pkgerrors.ErrInvalidArgument)
+	}
+	return nil
 }
 
 func parseID(name, raw string) (int64, error) {

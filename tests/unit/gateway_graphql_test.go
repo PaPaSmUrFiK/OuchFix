@@ -41,6 +41,23 @@ func (f *fakeProxy) Get(_ context.Context, path string, query url.Values, out an
 	return json.Unmarshal([]byte(body), out)
 }
 
+// Post — бизнес-операция: запрос запоминается как "POST path body".
+func (f *fakeProxy) Post(_ context.Context, path string, body any, out any) error {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	f.calls = append(f.calls, "POST "+path+" "+string(raw))
+	if err, ok := f.errs[path]; ok {
+		return err
+	}
+	resp, ok := f.responses[path]
+	if !ok {
+		return fmt.Errorf("%s: %w", path, pkgerrors.ErrNotFound)
+	}
+	return json.Unmarshal([]byte(resp), out)
+}
+
 type fakeGateway struct {
 	catalog, appointment, payment, notification *fakeProxy
 }
