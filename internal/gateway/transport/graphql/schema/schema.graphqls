@@ -7,6 +7,12 @@ enum VisitType { SCHEDULED WALK_IN }
 enum PaymentStatus { PENDING PAID FAILED }
 enum PaymentMethod { CASH CARD ONLINE }
 enum NotificationStatus { PENDING SENT READ FAILED }
+# Календарный день YYYY-MM-DD.
+scalar Date
+# Момент времени RFC 3339 с поясом: 2026-11-20T09:00:00+03:00.
+scalar DateTime
+
+enum AppointmentSort { SCHEDULED_AT_ASC SCHEDULED_AT_DESC }
 
 type User {
   id: ID!
@@ -25,7 +31,7 @@ type Role {
 type Patient {
   id: ID!
   fullName: String!
-  birthDate: String
+  birthDate: Date
   gender: String
   phone: String
   address: String
@@ -46,7 +52,8 @@ type Specialty {
 type MedicalService {
   id: ID!
   name: String!
-  price: Float!
+  # Деньги — целые копейки (BYN), без дробных частей и ошибок округления.
+  priceKopecks: Int!
   durationMin: Int
 }
 
@@ -61,8 +68,8 @@ type Medication {
 type ScheduleSlot {
   id: ID!
   doctorId: ID!
-  startsAt: String!
-  endsAt: String!
+  startsAt: DateTime!
+  endsAt: DateTime!
   status: SlotStatus!
 }
 
@@ -74,7 +81,7 @@ type Appointment {
   serviceId: ID
   status: AppointmentStatus!
   visitType: VisitType!
-  scheduledAt: String
+  scheduledAt: DateTime
   conclusion: String
   diagnoses: [Diagnosis!]!
   prescriptions: [Prescription!]!
@@ -97,10 +104,15 @@ type Payment {
   appointmentId: ID!
   patientId: ID!
   serviceId: ID
-  amount: Float!
+  amountKopecks: Int!
   method: PaymentMethod!
   status: PaymentStatus!
-  paidAt: String
+  paidAt: DateTime
+}
+
+type PaymentSummary {
+  count: Int!
+  totalKopecks: Int!
 }
 
 type Notification {
@@ -110,7 +122,7 @@ type Notification {
   status: NotificationStatus!
   relatedType: String
   relatedId: ID
-  createdAt: String!
+  createdAt: DateTime!
 }
 
 type AuthPayload {
@@ -123,7 +135,7 @@ input RegisterPatientInput {
   password: String!
   fullName: String!
   phone: String
-  birthDate: String
+  birthDate: Date
   gender: String
   address: String
 }
@@ -135,14 +147,14 @@ input LoginInput {
 
 input CreateSlotsInput {
   doctorId: ID!
-  startsAt: String!
-  endsAt: String!
+  startsAt: DateTime!
+  endsAt: DateTime!
 }
 
 input UpdateSlotsInput {
   slotIds: [ID!]!
-  startsAt: String
-  endsAt: String
+  startsAt: DateTime
+  endsAt: DateTime
 }
 
 input BookAppointmentInput {
@@ -192,7 +204,7 @@ input CreatePaymentInput {
   appointmentId: ID!
   patientId: ID!
   serviceId: ID
-  amount: Float!
+  amountKopecks: Int!
   method: PaymentMethod!
 }
 
@@ -214,14 +226,15 @@ type Query {
   doctors(specialtyId: ID): [Doctor!]!
   medicalServices: [MedicalService!]!
   medications: [Medication!]!
-  freeSlots(doctorId: ID!, date: String!): [ScheduleSlot!]!
+  freeSlots(doctorId: ID!, date: Date!): [ScheduleSlot!]!
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
-  payments(patientId: ID): [Payment!]!
+  payments(patientId: ID, status: PaymentStatus, from: Date, to: Date): [Payment!]!
+  paymentSummary(from: Date!, to: Date!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
-  appointments(doctorId: ID, date: String, status: AppointmentStatus): [Appointment!]!
-  doctorLoad(from: String!, to: String!): [DoctorLoad!]!
-  popularServices(from: String!, to: String!, limit: Int): [ServiceStat!]!
+  appointments(doctorId: ID, date: Date, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
+  doctorLoad(from: Date!, to: Date!): [DoctorLoad!]!
+  popularServices(from: Date!, to: Date!, limit: Int): [ServiceStat!]!
 }
 
 type Mutation {
@@ -238,7 +251,7 @@ type Mutation {
   completeAppointment(input: CompleteAppointmentInput!): Appointment!
   addDiagnosis(input: AddDiagnosisInput!): Diagnosis!
   addPrescription(input: AddPrescriptionInput!): Prescription!
-  upsertMedication(name: String!, form: String, unit: String!, stockQty: Float!): Medication!
+  receiveMedication(name: String!, form: String, unit: String!, quantity: Float!): Medication!
   dispenseMedication(input: DispenseMedicationInput!): Medication!
   createPayment(input: CreatePaymentInput!): Payment!
   markNotificationRead(id: ID!): Notification!

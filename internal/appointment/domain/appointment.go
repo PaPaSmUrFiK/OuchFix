@@ -73,3 +73,55 @@ type Prescription struct {
 	MedicationID  *int64
 	CreatedAt     time.Time
 }
+
+// SlotDuration — длительность слота расписания: интервал врача режется на такие слоты.
+const SlotDuration = 30 * time.Minute
+
+// MaxSlotsPeriod — наибольший интервал, который можно нарезать одной операцией (смена врача).
+const MaxSlotsPeriod = 12 * time.Hour
+
+// Overlaps — пересекаются ли интервалы [s.StartsAt, s.EndsAt) и [from, to).
+func (s Slot) Overlaps(from, to time.Time) bool {
+	return s.StartsAt.Before(to) && s.EndsAt.After(from)
+}
+
+// Active — приём ещё не завершён и не отменён: его можно отменить или провести.
+func (a Appointment) Active() bool {
+	return a.Status == StatusScheduled || a.Status == StatusQueue
+}
+
+// Sort — порядок списка приёмов по времени приёма.
+type Sort string
+
+const (
+	SortScheduledAtAsc  Sort = "scheduled_at_asc"
+	SortScheduledAtDesc Sort = "scheduled_at_desc"
+)
+
+func (s Sort) Valid() bool {
+	return s == SortScheduledAtAsc || s == SortScheduledAtDesc
+}
+
+// AppointmentFilter — отбор приёмов для расписания врача и регистратуры.
+// Пустое поле — без условия. Время приёма — scheduled_at, у живой очереди —
+// момент постановки в очередь.
+type AppointmentFilter struct {
+	DoctorID *int64
+	From, To *time.Time
+	Status   *Status
+	Sort     Sort
+}
+
+// DoctorLoad — сколько приёмов у врача за период (без отменённых).
+type DoctorLoad struct {
+	DoctorID         int64
+	FullName         string
+	AppointmentCount int
+}
+
+// ServiceStat — сколько раз услуга оказана за период (проведённые приёмы).
+type ServiceStat struct {
+	ServiceID    int64
+	Name         string
+	BookingCount int
+}

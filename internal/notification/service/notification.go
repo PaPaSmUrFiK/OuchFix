@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
@@ -11,6 +12,8 @@ import (
 
 type NotificationRepository interface {
 	ListByUser(ctx context.Context, userID int64, status *domain.Status) ([]domain.Notification, error)
+	MarkRead(ctx context.Context, userID, id int64) (*domain.Notification, error)
+	Get(ctx context.Context, userID, id int64) (*domain.Notification, error)
 }
 
 // IAMClient — то, что Notification спрашивает у IAM (IamGrpc).
@@ -44,4 +47,25 @@ func (s *NotificationService) ListUserNotifications(
 	}
 
 	return s.repo.ListByUser(ctx, userID, status)
+}
+
+// MarkRead отмечает уведомление пользователя прочитанным; повторный вызов ничего
+// не меняет. Чужое уведомление — NOT_FOUND (не раскрываем, что оно существует),
+// недоставленное (failed) — FAILED_PRECONDITION.
+func (s *NotificationService) MarkRead(ctx context.Context, userID, id int64) (*domain.Notification, error) {
+	if err := pkgerrors.ValidateID("userId", userID); err != nil {
+		return nil, err
+	}
+	if err := pkgerrors.ValidateID("id", id); err != nil {
+		return nil, err
+	}
+	n, err := s.repo.MarkRead(ctx, userID, id)
+	if !errors.Is(err, pkgerrors.ErrNotFound) {
+		return n, err
+	}
+	current, getErr := s.repo.Get(ctx, userID, id)
+	if getErr != nil {
+		return nil, getErr
+	}
+	return nil, fmt.Errorf("%w: уведомление в статусе %q нельзя отметить прочитанным", pkgerrors.ErrFailedPrecondition, current.Status)
 }

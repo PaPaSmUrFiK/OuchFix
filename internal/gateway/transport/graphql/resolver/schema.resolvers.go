@@ -12,6 +12,7 @@ import (
 
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/generated"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/model"
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar"
 )
 
 // RegisterPatient is the resolver for the registerPatient field.
@@ -31,72 +32,126 @@ func (r *mutationResolver) CreateDoctorAccount(ctx context.Context, email string
 
 // CreateSlots is the resolver for the createSlots field.
 func (r *mutationResolver) CreateSlots(ctx context.Context, input model.CreateSlotsInput) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("createSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots", input, &out)
 }
 
 // UpdateSlots is the resolver for the updateSlots field.
 func (r *mutationResolver) UpdateSlots(ctx context.Context, input model.UpdateSlotsInput) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("updateSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots/update", input, &out)
 }
 
 // CancelSlots is the resolver for the cancelSlots field.
 func (r *mutationResolver) CancelSlots(ctx context.Context, slotIds []string) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("cancelSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots/cancel", map[string][]string{"slotIds": slotIds}, &out)
 }
 
 // BookAppointment is the resolver for the bookAppointment field.
 func (r *mutationResolver) BookAppointment(ctx context.Context, input model.BookAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("bookAppointment", "ЛР4")
+	return postAppointment(ctx, r.services.Appointment, "/appointments", input)
 }
 
 // CreateWalkInAppointment is the resolver for the createWalkInAppointment field.
 func (r *mutationResolver) CreateWalkInAppointment(ctx context.Context, input model.WalkInAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("createWalkInAppointment", "ЛР4")
+	return postAppointment(ctx, r.services.Appointment, "/appointments/walk-in", input)
 }
 
 // CancelAppointment is the resolver for the cancelAppointment field.
 func (r *mutationResolver) CancelAppointment(ctx context.Context, id string) (*model.Appointment, error) {
-	return nil, notImplemented("cancelAppointment", "ЛР4")
+	appointmentID, err := parseID("id", id)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/cancel", struct{}{})
 }
 
 // RescheduleAppointment is the resolver for the rescheduleAppointment field.
 func (r *mutationResolver) RescheduleAppointment(ctx context.Context, input model.RescheduleAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("rescheduleAppointment", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/reschedule", input)
 }
 
 // CompleteAppointment is the resolver for the completeAppointment field.
 func (r *mutationResolver) CompleteAppointment(ctx context.Context, input model.CompleteAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("completeAppointment", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/complete", input)
 }
 
 // AddDiagnosis is the resolver for the addDiagnosis field.
 func (r *mutationResolver) AddDiagnosis(ctx context.Context, input model.AddDiagnosisInput) (*model.Diagnosis, error) {
-	return nil, notImplemented("addDiagnosis", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	var out model.Diagnosis
+	if err := r.services.Appointment.Post(ctx, "/appointments/"+appointmentID+"/diagnoses", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // AddPrescription is the resolver for the addPrescription field.
 func (r *mutationResolver) AddPrescription(ctx context.Context, input model.AddPrescriptionInput) (*model.Prescription, error) {
-	return nil, notImplemented("addPrescription", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	var out model.Prescription
+	if err := r.services.Appointment.Post(ctx, "/appointments/"+appointmentID+"/prescriptions", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
-// UpsertMedication is the resolver for the upsertMedication field.
-func (r *mutationResolver) UpsertMedication(ctx context.Context, name string, form *string, unit string, stockQty float64) (*model.Medication, error) {
-	return nil, notImplemented("upsertMedication", "ЛР4")
+// ReceiveMedication is the resolver for the receiveMedication field.
+func (r *mutationResolver) ReceiveMedication(ctx context.Context, name string, form *string, unit string, quantity float64) (*model.Medication, error) {
+	body := map[string]any{"name": name, "form": form, "unit": unit, "quantity": quantity}
+	var out model.Medication
+	if err := r.services.Catalog.Post(ctx, "/medications/receive", body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // DispenseMedication is the resolver for the dispenseMedication field.
 func (r *mutationResolver) DispenseMedication(ctx context.Context, input model.DispenseMedicationInput) (*model.Medication, error) {
-	return nil, notImplemented("dispenseMedication", "ЛР4")
+	var out model.Medication
+	if err := r.services.Catalog.Post(ctx, "/medications/dispense", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // CreatePayment is the resolver for the createPayment field.
 func (r *mutationResolver) CreatePayment(ctx context.Context, input model.CreatePaymentInput) (*model.Payment, error) {
-	return nil, notImplemented("createPayment", "ЛР4")
+	var out model.Payment
+	if err := r.services.Payment.Post(ctx, "/payments", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // MarkNotificationRead is the resolver for the markNotificationRead field.
 func (r *mutationResolver) MarkNotificationRead(ctx context.Context, id string) (*model.Notification, error) {
-	return nil, notImplemented("markNotificationRead", "ЛР4")
+	// ВРЕМЕННО до ЛР5: пользователь из конфига вместо JWT.
+	nid, err := parseID("id", id)
+	if err != nil {
+		return nil, err
+	}
+	path := "/users/" + strconv.FormatInt(r.currentUserID, 10) + "/notifications/" + nid + "/read"
+	var out model.Notification
+	if err := r.services.Notification.Post(ctx, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Me is the resolver for the me field.
@@ -137,13 +192,13 @@ func (r *queryResolver) Medications(ctx context.Context) ([]*model.Medication, e
 }
 
 // FreeSlots is the resolver for the freeSlots field.
-func (r *queryResolver) FreeSlots(ctx context.Context, doctorID string, date string) ([]*model.ScheduleSlot, error) {
+func (r *queryResolver) FreeSlots(ctx context.Context, doctorID string, date scalar.Date) ([]*model.ScheduleSlot, error) {
 	id, err := parseID("doctorId", doctorID)
 	if err != nil {
 		return nil, err
 	}
 	var out []*model.ScheduleSlot
-	return out, r.services.Appointment.Get(ctx, "/doctors/"+id+"/free-slots", url.Values{"date": {date}}, &out)
+	return out, r.services.Appointment.Get(ctx, "/doctors/"+id+"/free-slots", url.Values{"date": {string(date)}}, &out)
 }
 
 // Appointment is the resolver for the appointment field.
@@ -175,7 +230,7 @@ func (r *queryResolver) MyAppointments(ctx context.Context, status *model.Appoin
 }
 
 // Payments is the resolver for the payments field.
-func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*model.Payment, error) {
+func (r *queryResolver) Payments(ctx context.Context, patientID *string, status *model.PaymentStatus, from *scalar.Date, to *scalar.Date) ([]*model.Payment, error) {
 	query := url.Values{}
 	if patientID != nil {
 		id, err := parseID("patientId", *patientID)
@@ -184,8 +239,20 @@ func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*mod
 		}
 		query.Set("patientId", id)
 	}
+	optionalQuery(query, "status", status)
+	optionalQuery(query, "from", from)
+	optionalQuery(query, "to", to)
 	var out []*model.Payment
 	return out, r.services.Payment.Get(ctx, "/payments", query, &out)
+}
+
+// PaymentSummary is the resolver for the paymentSummary field.
+func (r *queryResolver) PaymentSummary(ctx context.Context, from scalar.Date, to scalar.Date) (*model.PaymentSummary, error) {
+	var out model.PaymentSummary
+	if err := r.services.Payment.Get(ctx, "/payments/summary", url.Values{"from": {string(from)}, "to": {string(to)}}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // MyNotifications is the resolver for the myNotifications field.
@@ -198,18 +265,36 @@ func (r *queryResolver) MyNotifications(ctx context.Context, status *model.Notif
 }
 
 // Appointments is the resolver for the appointments field.
-func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus) ([]*model.Appointment, error) {
-	return nil, notImplemented("appointments", "ЛР4")
+func (r *queryResolver) Appointments(ctx context.Context, doctorID *string, date *scalar.Date, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error) {
+	query := url.Values{}
+	if doctorID != nil {
+		id, err := parseID("doctorId", *doctorID)
+		if err != nil {
+			return nil, err
+		}
+		query.Set("doctorId", id)
+	}
+	optionalQuery(query, "date", date)
+	optionalQuery(query, "status", status)
+	optionalQuery(query, "sort", sort)
+	var out []*model.Appointment
+	return out, r.services.Appointment.Get(ctx, "/appointments", query, &out)
 }
 
 // DoctorLoad is the resolver for the doctorLoad field.
-func (r *queryResolver) DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error) {
-	return nil, notImplemented("doctorLoad", "ЛР4")
+func (r *queryResolver) DoctorLoad(ctx context.Context, from scalar.Date, to scalar.Date) ([]*model.DoctorLoad, error) {
+	var out []*model.DoctorLoad
+	return out, r.services.Appointment.Get(ctx, "/stats/doctor-load", url.Values{"from": {string(from)}, "to": {string(to)}}, &out)
 }
 
 // PopularServices is the resolver for the popularServices field.
-func (r *queryResolver) PopularServices(ctx context.Context, from string, to string, limit *int32) ([]*model.ServiceStat, error) {
-	return nil, notImplemented("popularServices", "ЛР4")
+func (r *queryResolver) PopularServices(ctx context.Context, from scalar.Date, to scalar.Date, limit *int32) ([]*model.ServiceStat, error) {
+	query := url.Values{"from": {string(from)}, "to": {string(to)}}
+	if limit != nil {
+		query.Set("limit", strconv.Itoa(int(*limit)))
+	}
+	var out []*model.ServiceStat
+	return out, r.services.Appointment.Get(ctx, "/stats/popular-services", query, &out)
 }
 
 // Mutation returns generated.MutationResolver implementation.

@@ -25,3 +25,9 @@ models:
   Int:
     model:
       - github.com/99designs/gqlgen/graphql.Int32
+  Date:
+    model:
+      - github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar.Date
+  DateTime:
+    model:
+      - github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/scalar.DateTime

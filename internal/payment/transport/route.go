@@ -20,8 +20,43 @@ func New(svc *service.PaymentService, loc *time.Location) func(fiber.Router) {
 			if err != nil {
 				return httpserver.WriteError(c, err)
 			}
-			items, err := svc.ListPayments(c.Context(), patientID)
+			items, err := svc.ListPayments(c.Context(), service.ListInput{
+				PatientID: patientID,
+				Status:    optionalQuery(c, "status"),
+				From:      optionalQuery(c, "from"),
+				To:        optionalQuery(c, "to"),
+			})
 			return httpserver.Reply(c, httpserver.MapList(items, toPayment(loc)), err)
 		})
+		router.Post("/payments", func(c fiber.Ctx) error {
+			var req createPaymentRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in, err := req.toInput()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			p, err := svc.CreatePayment(c.Context(), in)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, toPayment(loc)(p), nil)
+		})
+		router.Get("/payments/summary", func(c fiber.Ctx) error {
+			sum, err := svc.PaymentSummary(c.Context(), c.Query("from"), c.Query("to"))
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, summaryResponse{Count: sum.Count, TotalKopecks: sum.TotalKopecks}, nil)
+		})
 	}
+}
+
+// optionalQuery — query-параметр или nil, если его нет.
+func optionalQuery(c fiber.Ctx, name string) *string {
+	if v := c.Query(name); v != "" {
+		return &v
+	}
+	return nil
 }

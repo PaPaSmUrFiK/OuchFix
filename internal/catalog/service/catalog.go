@@ -17,6 +17,11 @@ type CatalogRepository interface {
 	GetMedicalService(ctx context.Context, id int64) (*domain.MedicalService, error)
 	ListMedications(ctx context.Context) ([]domain.Medication, error)
 	GetMedication(ctx context.Context, id int64) (*domain.Medication, error)
+
+	InTx(ctx context.Context, fn func(context.Context) error) error
+	ReceiveMedication(ctx context.Context, m domain.Medication, qty float64) (*domain.Medication, error)
+	TakeStock(ctx context.Context, medicationID int64, qty float64) (*domain.Medication, error)
+	InsertDispense(ctx context.Context, d domain.Dispense) error
 }
 
 type CatalogService struct {

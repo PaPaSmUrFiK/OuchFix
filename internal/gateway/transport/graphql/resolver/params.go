@@ -1,11 +1,13 @@
 package resolver
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql/model"
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
 
@@ -29,4 +31,13 @@ func optionalQuery[T ~string](query url.Values, name string, value *T) {
 // notImplemented — операции следующих лабораторных: схема уже есть, логики ещё нет.
 func notImplemented(field, lab string) error {
 	return fmt.Errorf("%w: %s появится в %s", pkgerrors.ErrNotImplemented, field, lab)
+}
+
+// postAppointment — бизнес-операция над приёмом: сервис отвечает приёмом целиком.
+func postAppointment(ctx context.Context, svc Service, path string, body any) (*model.Appointment, error) {
+	var out model.Appointment
+	if err := svc.Post(ctx, path, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }

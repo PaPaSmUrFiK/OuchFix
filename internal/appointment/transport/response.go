@@ -58,21 +58,45 @@ func toSlot(loc *time.Location) func(*domain.Slot) slotResponse {
 func toAppointment(loc *time.Location) func(*domain.Appointment) appointmentResponse {
 	return func(a *domain.Appointment) appointmentResponse {
 		return appointmentResponse{
-			ID:          httpserver.FormatID(a.ID),
-			PatientID:   httpserver.FormatID(a.PatientID),
-			DoctorID:    httpserver.FormatID(a.DoctorID),
-			SlotID:      httpserver.FormatOptionalID(a.SlotID),
-			ServiceID:   httpserver.FormatOptionalID(a.ServiceID),
-			Status:      httpserver.FormatEnum(a.Status),
-			VisitType:   httpserver.FormatEnum(a.VisitType),
-			ScheduledAt: httpserver.FormatOptionalTime(a.ScheduledAt, loc),
-			Conclusion:  a.Conclusion,
-			Diagnoses: httpserver.MapList(a.Diagnoses, func(d *domain.Diagnosis) diagnosisResponse {
-				return diagnosisResponse{ID: httpserver.FormatID(d.ID), Code: d.Code, Description: d.Description}
-			}),
-			Prescriptions: httpserver.MapList(a.Prescriptions, func(p *domain.Prescription) prescriptionResponse {
-				return prescriptionResponse{ID: httpserver.FormatID(p.ID), Text: p.Text, MedicationID: httpserver.FormatOptionalID(p.MedicationID)}
-			}),
+			ID:            httpserver.FormatID(a.ID),
+			PatientID:     httpserver.FormatID(a.PatientID),
+			DoctorID:      httpserver.FormatID(a.DoctorID),
+			SlotID:        httpserver.FormatOptionalID(a.SlotID),
+			ServiceID:     httpserver.FormatOptionalID(a.ServiceID),
+			Status:        httpserver.FormatEnum(a.Status),
+			VisitType:     httpserver.FormatEnum(a.VisitType),
+			ScheduledAt:   httpserver.FormatOptionalTime(a.ScheduledAt, loc),
+			Conclusion:    a.Conclusion,
+			Diagnoses:     httpserver.MapList(a.Diagnoses, toDiagnosis),
+			Prescriptions: httpserver.MapList(a.Prescriptions, toPrescription),
 		}
 	}
+}
+
+func toDiagnosis(d *domain.Diagnosis) diagnosisResponse {
+	return diagnosisResponse{ID: httpserver.FormatID(d.ID), Code: d.Code, Description: d.Description}
+}
+
+func toPrescription(p *domain.Prescription) prescriptionResponse {
+	return prescriptionResponse{ID: httpserver.FormatID(p.ID), Text: p.Text, MedicationID: httpserver.FormatOptionalID(p.MedicationID)}
+}
+
+type doctorLoadResponse struct {
+	DoctorID         string `json:"doctorId"`
+	FullName         string `json:"fullName"`
+	AppointmentCount int    `json:"appointmentCount"`
+}
+
+type serviceStatResponse struct {
+	ServiceID    string `json:"serviceId"`
+	Name         string `json:"name"`
+	BookingCount int    `json:"bookingCount"`
+}
+
+func toDoctorLoad(d *domain.DoctorLoad) doctorLoadResponse {
+	return doctorLoadResponse{DoctorID: httpserver.FormatID(d.DoctorID), FullName: d.FullName, AppointmentCount: d.AppointmentCount}
+}
+
+func toServiceStat(s *domain.ServiceStat) serviceStatResponse {
+	return serviceStatResponse{ServiceID: httpserver.FormatID(s.ServiceID), Name: s.Name, BookingCount: s.BookingCount}
 }

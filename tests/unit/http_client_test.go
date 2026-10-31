@@ -3,6 +3,7 @@ package unit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -55,6 +56,47 @@ func TestHTTPClientKeepsDomainErrors(t *testing.T) {
 	}
 	if err := cl.Get(ctx, "/ok", nil, &out); err != nil || len(out) != 2 {
 		t.Fatalf("ok: %v %v", out, err)
+	}
+}
+
+// POST передаёт тело как JSON, а 409 и 422 сервиса становятся
+// ErrConflict и ErrFailedPrecondition с исходным текстом.
+func TestHTTPClientPostAndBusinessErrors(t *testing.T) {
+	app := fiber.New()
+	app.Post("/echo", func(c fiber.Ctx) error {
+		var in struct {
+			Name string `json:"name"`
+		}
+		if err := httpserver.BindJSON(c, &in); err != nil {
+			return httpserver.WriteError(c, err)
+		}
+		return httpserver.Reply(c, in, nil)
+	})
+	app.Post("/conflict", func(c fiber.Ctx) error {
+		return httpserver.WriteError(c, fmt.Errorf("%w: слот занят", pkgerrors.ErrConflict))
+	})
+	app.Post("/state", func(c fiber.Ctx) error {
+		return httpserver.WriteError(c, fmt.Errorf("%w: приём завершён", pkgerrors.ErrFailedPrecondition))
+	})
+	srv := httptest.NewServer(adaptorHandler(app))
+	defer srv.Close()
+
+	cl := httpclient.New(srv.URL, time.Second)
+	ctx := context.Background()
+
+	var out struct {
+		Name string `json:"name"`
+	}
+	if err := cl.Post(ctx, "/echo", map[string]string{"name": "x"}, &out); err != nil || out.Name != "x" {
+		t.Fatalf("echo: %+v %v", out, err)
+	}
+	err := cl.Post(ctx, "/conflict", struct{}{}, &out)
+	if !errors.Is(err, pkgerrors.ErrConflict) || !strings.Contains(err.Error(), "слот занят") {
+		t.Fatalf("conflict: %v", err)
+	}
+	err = cl.Post(ctx, "/state", struct{}{}, &out)
+	if !errors.Is(err, pkgerrors.ErrFailedPrecondition) {
+		t.Fatalf("precondition: %v", err)
 	}
 }
 

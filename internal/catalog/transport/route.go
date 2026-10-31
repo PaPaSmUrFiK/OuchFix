@@ -3,6 +3,7 @@ package transport
 import (
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/PaPaSmUrFiK/OuchFix/internal/catalog/domain"
 	"github.com/PaPaSmUrFiK/OuchFix/internal/catalog/service"
 	httpserver "github.com/PaPaSmUrFiK/OuchFix/pkg/transport/http/server"
 )
@@ -43,5 +44,32 @@ func New(svc *service.CatalogService) func(fiber.Router) {
 			items, err := svc.ListMedications(c.Context())
 			return httpserver.Reply(c, httpserver.MapList(items, toMedication), err)
 		})
+		router.Post("/medications/receive", func(c fiber.Ctx) error {
+			var req receiveMedicationRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			m, err := svc.ReceiveMedication(c.Context(), req.toDomain(), req.Quantity)
+			return replyMedication(c, m, err)
+		})
+		router.Post("/medications/dispense", func(c fiber.Ctx) error {
+			var req dispenseRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			d, err := req.toDomain()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			m, err := svc.DispenseMedication(c.Context(), d)
+			return replyMedication(c, m, err)
+		})
 	}
+}
+
+func replyMedication(c fiber.Ctx, m *domain.Medication, err error) error {
+	if err != nil {
+		return httpserver.WriteError(c, err)
+	}
+	return httpserver.Reply(c, toMedication(m), nil)
 }

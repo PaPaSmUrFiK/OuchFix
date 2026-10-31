@@ -13,7 +13,7 @@ type paymentResponse struct {
 	AppointmentID string  `json:"appointmentId"`
 	PatientID     string  `json:"patientId"`
 	ServiceID     *string `json:"serviceId"`
-	Amount        float64 `json:"amount"`
+	AmountKopecks int64   `json:"amountKopecks"`
 	Method        string  `json:"method"`
 	Status        string  `json:"status"`
 	PaidAt        *string `json:"paidAt"`
@@ -26,10 +26,15 @@ func toPayment(loc *time.Location) func(*domain.Payment) paymentResponse {
 			AppointmentID: httpserver.FormatID(p.AppointmentID),
 			PatientID:     httpserver.FormatID(p.PatientID),
 			ServiceID:     httpserver.FormatOptionalID(p.ServiceID),
-			Amount:        p.Amount,
+			AmountKopecks: p.AmountKopecks,
 			Method:        httpserver.FormatEnum(p.Method),
 			Status:        httpserver.FormatEnum(p.Status),
 			PaidAt:        httpserver.FormatOptionalTime(p.PaidAt, loc),
 		}
 	}
+}
+
+type summaryResponse struct {
+	Count        int   `json:"count"`
+	TotalKopecks int64 `json:"totalKopecks"`
 }

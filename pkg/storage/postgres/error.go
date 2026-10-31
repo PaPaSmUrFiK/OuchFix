@@ -3,13 +3,17 @@ package postgres
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
 	pkgerrors "github.com/PaPaSmUrFiK/OuchFix/pkg/errors"
 )
 
-const invalidTextRepresentation = "22P02"
+const (
+	invalidTextRepresentation = "22P02"
+	uniqueViolation           = "23505"
+)
 
 // WrapDB переводит технические ошибки БД в доменные. Для «не найдено» и
 // «неверный формат» причина не сохраняется: её текст (sql: no rows, текст
@@ -24,9 +28,28 @@ func WrapDB(err error) error {
 	}
 
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == invalidTextRepresentation {
-		return pkgerrors.ErrInvalidArgument
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case invalidTextRepresentation:
+			return pkgerrors.ErrInvalidArgument
+		case uniqueViolation:
+			// Гонка двух одинаковых операций: проверка в сервисе прошла у обеих,
+			// уникальный индекс пропустил только одну.
+			return pkgerrors.ErrConflict
+		}
 	}
 
 	return err
+}
+
+// RequireAffected — UPDATE не задел ни одной строки: объекта нет.
+func RequireAffected(res sql.Result, what string) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: rows affected: %w", what, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%s: %w", what, pkgerrors.ErrNotFound)
+	}
+	return nil
 }

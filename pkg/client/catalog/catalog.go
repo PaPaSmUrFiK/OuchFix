@@ -20,10 +20,10 @@ type DoctorReply struct {
 }
 
 type ServiceReply struct {
-	ID          int64
-	Name        string
-	Price       float64
-	DurationMin int32
+	ID           int64
+	Name         string
+	PriceKopecks int64
+	DurationMin  int32
 }
 
 type MedicationReply struct {

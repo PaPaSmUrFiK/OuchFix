@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	gql "github.com/PaPaSmUrFiK/OuchFix/internal/gateway/transport/graphql"
@@ -22,6 +23,7 @@ import (
 type fakeProxy struct {
 	responses map[string]string
 	errs      map[string]error
+	mu        sync.Mutex
 	calls     []string
 }
 
@@ -30,7 +32,9 @@ func (f *fakeProxy) Get(_ context.Context, path string, query url.Values, out an
 	if len(query) > 0 {
 		call += "?" + query.Encode()
 	}
+	f.mu.Lock()
 	f.calls = append(f.calls, call)
+	f.mu.Unlock()
 	if err, ok := f.errs[path]; ok {
 		return err
 	}
@@ -39,6 +43,25 @@ func (f *fakeProxy) Get(_ context.Context, path string, query url.Values, out an
 		return fmt.Errorf("%s: %w", path, pkgerrors.ErrNotFound)
 	}
 	return json.Unmarshal([]byte(body), out)
+}
+
+// Post — бизнес-операция: запрос запоминается как "POST path body".
+func (f *fakeProxy) Post(_ context.Context, path string, body any, out any) error {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	f.mu.Lock()
+	f.calls = append(f.calls, "POST "+path+" "+string(raw))
+	f.mu.Unlock()
+	if err, ok := f.errs[path]; ok {
+		return err
+	}
+	resp, ok := f.responses[path]
+	if !ok {
+		return fmt.Errorf("%s: %w", path, pkgerrors.ErrNotFound)
+	}
+	return json.Unmarshal([]byte(resp), out)
 }
 
 type fakeGateway struct {
@@ -149,7 +172,6 @@ func TestGraphQLNotImplementedOperations(t *testing.T) {
 	h, _ := newGatewayHandler(t, 5)
 	for _, q := range []string{
 		`{ me { id } }`,
-		`{ appointments { id } }`,
 		`mutation { login(input: {email: "a", password: "b"}) { token } }`,
 	} {
 		if resp := doGraphQL(t, h, q); len(resp.Errors) != 1 {
@@ -188,5 +210,117 @@ func TestGraphQLUnknownUserIsNotFound(t *testing.T) {
 	resp := doGraphQL(t, h, `{ myAppointments { id } }`)
 	if len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != "NOT_FOUND" {
 		t.Fatalf("got %+v", resp.Errors)
+	}
+}
+
+// Mutation только пересылает input сервису и отдаёт его ответ; бизнес-ошибки
+// сервиса доходят до клиента со своими кодами.
+func TestGraphQLMutationsProxyInput(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.appointment.responses["/appointments"] = `{"id":"6","patientId":"1","doctorId":"1","slotId":"2","status":"SCHEDULED","visitType":"SCHEDULED","diagnoses":[],"prescriptions":[]}`
+	f.appointment.errs = map[string]error{
+		"/appointments/2/cancel": fmt.Errorf("%w: нельзя отменить приём в статусе completed", pkgerrors.ErrFailedPrecondition),
+		"/slots":                 fmt.Errorf("%w: время пересекается со слотом 3", pkgerrors.ErrConflict),
+	}
+
+	resp := doGraphQL(t, h, `mutation { bookAppointment(input: {patientId: "1", doctorId: "1", slotId: "2"}) { id status } }`)
+	if len(resp.Errors) != 0 || !strings.Contains(string(resp.Data["bookAppointment"]), `"status":"SCHEDULED"`) {
+		t.Fatalf("book: %+v %s", resp.Errors, resp.Data["bookAppointment"])
+	}
+	if got := f.appointment.calls[0]; got != `POST /appointments {"patientId":"1","doctorId":"1","slotId":"2"}` {
+		t.Fatalf("book call = %s", got)
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{`mutation { cancelAppointment(id: "2") { id } }`, "FAILED_PRECONDITION"},
+		{`mutation { createSlots(input: {doctorId: "1", startsAt: "2026-11-20T09:00:00+03:00", endsAt: "2026-11-20T10:00:00+03:00"}) { id } }`, "CONFLICT"},
+		{`mutation { createSlots(input: {doctorId: "1", startsAt: "20.11.2026 09:00", endsAt: "2026-11-20T10:00:00+03:00"}) { id } }`, "BAD_USER_INPUT"},
+		{`{ appointments(date: "2026-13-01") { id } }`, "BAD_USER_INPUT"},
+		{`mutation { cancelAppointment(id: "x") { id } }`, "BAD_USER_INPUT"},
+	} {
+		resp := doGraphQL(t, h, tc.query)
+		if len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != tc.code {
+			t.Fatalf("%s: want %s, got %+v", tc.query, tc.code, resp.Errors)
+		}
+	}
+}
+
+func TestGraphQLAppointmentQueriesProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.appointment.responses["/appointments"] = `[]`
+	f.appointment.responses["/stats/doctor-load"] = `[{"doctorId":"1","fullName":"Петров","appointmentCount":2}]`
+	f.appointment.responses["/stats/popular-services"] = `[]`
+	q := `{ appointments(doctorId: "1", date: "2030-03-01", status: SCHEDULED, sort: SCHEDULED_AT_DESC) { id }
+	        doctorLoad(from: "2030-03-01", to: "2030-03-31") { fullName appointmentCount }
+	        popularServices(from: "2030-03-01", to: "2030-03-31", limit: 3) { name } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := map[string]bool{
+		"/appointments?date=2030-03-01&doctorId=1&sort=SCHEDULED_AT_DESC&status=SCHEDULED": true,
+		"/stats/doctor-load?from=2030-03-01&to=2030-03-31":                                 true,
+		"/stats/popular-services?from=2030-03-01&limit=3&to=2030-03-31":                    true,
+	}
+	for _, c := range f.appointment.calls {
+		delete(want, c)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing calls %v, got %v", want, f.appointment.calls)
+	}
+}
+
+func TestGraphQLMedicationMutationsProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	med := `{"id":"1","name":"Парацетамол","form":null,"unit":"шт","stockQty":5}`
+	f.catalog.responses["/medications/receive"] = med
+	f.catalog.responses["/medications/dispense"] = med
+	q := `mutation {
+	  a: receiveMedication(name: "Парацетамол", unit: "шт", quantity: 5) { id }
+	  b: dispenseMedication(input: {medicationId: "1", patientId: "2", quantity: 1.5}) { stockQty } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := []string{
+		`POST /medications/receive {"form":null,"name":"Парацетамол","quantity":5,"unit":"шт"}`,
+		`POST /medications/dispense {"medicationId":"1","patientId":"2","quantity":1.5}`,
+	}
+	if len(f.catalog.calls) != 2 || f.catalog.calls[0] != want[0] || f.catalog.calls[1] != want[1] {
+		t.Fatalf("calls = %q", f.catalog.calls)
+	}
+}
+
+func TestGraphQLPaymentProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.payment.errs = nil
+	f.payment.responses = map[string]string{}
+	f.payment.responses["/payments"] = `{"id":"4","appointmentId":"1","patientId":"1","serviceId":"1","amountKopecks":3500,"method":"CARD","status":"PAID","paidAt":null}`
+	f.payment.responses["/payments/summary"] = `{"count":2,"totalKopecks":7000}`
+	q := `mutation { createPayment(input: {appointmentId: "1", patientId: "1", amountKopecks: 3500, method: CARD}) { id status } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	if resp := doGraphQL(t, h, `{ paymentSummary(from: "2026-11-01", to: "2026-11-30") { count totalKopecks } }`); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := []string{
+		`POST /payments {"appointmentId":"1","patientId":"1","amountKopecks":3500,"method":"CARD"}`,
+		`/payments/summary?from=2026-11-01&to=2026-11-30`,
+	}
+	if len(f.payment.calls) != 2 || f.payment.calls[0] != want[0] || f.payment.calls[1] != want[1] {
+		t.Fatalf("calls = %q", f.payment.calls)
+	}
+}
+
+func TestGraphQLMarkNotificationReadUsesCurrentUser(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.notification.responses["/users/5/notifications/3/read"] = `{"id":"3","title":"t","body":"b","status":"READ","channel":"PUSH"}`
+	if resp := doGraphQL(t, h, `mutation { markNotificationRead(id: "3") { id } }`); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	if resp := doGraphQL(t, h, `mutation { markNotificationRead(id: "x") { id } }`); len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != "BAD_USER_INPUT" {
+		t.Fatalf("bad id: %+v", resp.Errors)
+	}
+	if got := f.notification.calls; len(got) != 1 || got[0] != "POST /users/5/notifications/3/read null" {
+		t.Fatalf("calls = %q", got)
 	}
 }

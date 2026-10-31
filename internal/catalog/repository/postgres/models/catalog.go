@@ -62,14 +62,14 @@ func (m Doctor) ToDomain() domain.Doctor {
 }
 
 type MedicalService struct {
-	ID          int64         `db:"id"`
-	Name        string        `db:"name"`
-	Price       float64       `db:"price"`
-	DurationMin sql.NullInt32 `db:"duration_min"`
+	ID           int64         `db:"id"`
+	Name         string        `db:"name"`
+	PriceKopecks int64         `db:"price_kopecks"`
+	DurationMin  sql.NullInt32 `db:"duration_min"`
 }
 
 func (m MedicalService) ToDomain() domain.MedicalService {
-	s := domain.MedicalService{ID: m.ID, Name: m.Name, Price: m.Price}
+	s := domain.MedicalService{ID: m.ID, Name: m.Name, PriceKopecks: m.PriceKopecks}
 	if m.DurationMin.Valid {
 		v := m.DurationMin.Int32
 		s.DurationMin = &v

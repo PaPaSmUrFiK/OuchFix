@@ -28,10 +28,10 @@ type Doctor struct {
 }
 
 type MedicalService struct {
-	ID          int64
-	Name        string
-	Price       float64
-	DurationMin *int32
+	ID           int64
+	Name         string
+	PriceKopecks int64
+	DurationMin  *int32
 }
 
 type Medication struct {
@@ -40,4 +40,12 @@ type Medication struct {
 	Form     *string
 	Unit     string
 	StockQty float64
+}
+
+// Dispense — выдача препарата пациенту со склада.
+type Dispense struct {
+	MedicationID  int64
+	PatientID     int64
+	AppointmentID *int64
+	Quantity      float64
 }

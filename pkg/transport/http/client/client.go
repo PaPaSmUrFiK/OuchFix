@@ -3,6 +3,7 @@
 package httpclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -39,13 +40,32 @@ func (e *remoteError) Unwrap() error { return e.kind }
 
 // Get делает GET path?query и декодирует JSON-ответ в out.
 func (c *Client) Get(ctx context.Context, path string, query url.Values, out any) error {
-	target := c.baseURL + path
 	if len(query) > 0 {
-		target += "?" + query.Encode()
+		path += "?" + query.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	return c.do(ctx, http.MethodGet, path, nil, out)
+}
+
+// Post отправляет body как JSON и декодирует JSON-ответ в out.
+func (c *Client) Post(ctx context.Context, path string, body any, out any) error {
+	return c.do(ctx, http.MethodPost, path, body, out)
+}
+
+func (c *Client) do(ctx context.Context, method, path string, body any, out any) error {
+	var reader io.Reader
+	if body != nil {
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("encode %s: %w", path, err)
+		}
+		reader = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
 	if err != nil {
 		return fmt.Errorf("build request %s: %w", path, err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 
 	resp, err := c.http.Do(req)
@@ -69,16 +89,20 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values, out any
 		kind = pkgerrors.ErrInvalidArgument
 	case http.StatusNotImplemented:
 		kind = pkgerrors.ErrNotImplemented
+	case http.StatusConflict:
+		kind = pkgerrors.ErrConflict
+	case http.StatusUnprocessableEntity:
+		kind = pkgerrors.ErrFailedPrecondition
 	default:
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("call %s: status %d: %s", path, resp.StatusCode, strings.TrimSpace(string(body)))
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("call %s: status %d: %s", path, resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 
-	var body struct {
+	var errBody struct {
 		Error string `json:"error"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil || body.Error == "" {
+	if err := json.NewDecoder(resp.Body).Decode(&errBody); err != nil || errBody.Error == "" {
 		return kind
 	}
-	return &remoteError{msg: body.Error, kind: kind}
+	return &remoteError{msg: errBody.Error, kind: kind}
 }

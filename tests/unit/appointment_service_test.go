@@ -21,6 +21,145 @@ type fakeAppointmentRepo struct {
 	slotStatus       domain.SlotStatus
 	slotCalls        int
 	lastStatus       *domain.Status
+
+	slots    map[int64]domain.Slot
+	nextSlot int64
+	inTx     bool
+	locked   []int64
+
+	lastFilter  domain.AppointmentFilter
+	reportFrom  time.Time
+	reportTo    time.Time
+	reportLimit int
+	load        []domain.DoctorLoad
+	popular     []domain.ServiceStat
+}
+
+func (f *fakeAppointmentRepo) ListAppointments(_ context.Context, flt domain.AppointmentFilter) ([]domain.Appointment, error) {
+	f.lastFilter = flt
+	return []domain.Appointment{}, nil
+}
+
+func (f *fakeAppointmentRepo) DoctorLoad(_ context.Context, from, to time.Time) ([]domain.DoctorLoad, error) {
+	f.reportFrom, f.reportTo = from, to
+	return append([]domain.DoctorLoad(nil), f.load...), nil
+}
+
+func (f *fakeAppointmentRepo) PopularServices(_ context.Context, from, to time.Time, limit int) ([]domain.ServiceStat, error) {
+	f.reportFrom, f.reportTo, f.reportLimit = from, to, limit
+	return append([]domain.ServiceStat(nil), f.popular...), nil
+}
+
+func (f *fakeAppointmentRepo) GetAppointmentForUpdate(_ context.Context, id int64) (*domain.Appointment, error) {
+	if !f.inTx {
+		return nil, errors.New("lock outside tx")
+	}
+	a, ok := f.appointments[id]
+	if !ok {
+		return nil, pkgerrors.ErrNotFound
+	}
+	return &a, nil
+}
+
+func (f *fakeAppointmentRepo) HasQueued(_ context.Context, patientID, doctorID int64) (bool, error) {
+	for _, a := range f.appointments {
+		if a.PatientID == patientID && a.DoctorID == doctorID && a.Status == domain.StatusQueue {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (f *fakeAppointmentRepo) InsertAppointment(_ context.Context, a domain.Appointment) (*domain.Appointment, error) {
+	if !f.inTx {
+		return nil, errors.New("insert outside tx")
+	}
+	if f.appointments == nil {
+		f.appointments = map[int64]domain.Appointment{}
+	}
+	a.ID = int64(len(f.appointments) + 100)
+	f.appointments[a.ID] = a
+	return &a, nil
+}
+
+func (f *fakeAppointmentRepo) UpdateAppointment(_ context.Context, a domain.Appointment) error {
+	if _, ok := f.appointments[a.ID]; !ok {
+		return pkgerrors.ErrNotFound
+	}
+	f.appointments[a.ID] = a
+	return nil
+}
+
+func (f *fakeAppointmentRepo) InsertDiagnosis(_ context.Context, d domain.Diagnosis) (*domain.Diagnosis, error) {
+	d.ID = int64(len(f.diagnoses) + 1)
+	f.diagnoses = append(f.diagnoses, d)
+	return &d, nil
+}
+
+func (f *fakeAppointmentRepo) InsertPrescription(_ context.Context, p domain.Prescription) (*domain.Prescription, error) {
+	p.ID = int64(len(f.prescriptions) + 1)
+	f.prescriptions = append(f.prescriptions, p)
+	return &p, nil
+}
+
+// InTx в fake — без отката: тесты проверяют, что при ошибке запись не делалась.
+func (f *fakeAppointmentRepo) InTx(ctx context.Context, fn func(context.Context) error) error {
+	f.inTx = true
+	defer func() { f.inTx = false }()
+	return fn(ctx)
+}
+
+func (f *fakeAppointmentRepo) LockDoctorSchedule(_ context.Context, doctorID int64) error {
+	f.locked = append(f.locked, doctorID)
+	return nil
+}
+
+func (f *fakeAppointmentRepo) ListActiveSlots(_ context.Context, doctorID int64, from, to time.Time) ([]domain.Slot, error) {
+	out := []domain.Slot{}
+	for _, s := range f.slots {
+		if s.DoctorID == doctorID && s.Status != domain.SlotCancelled && s.Overlaps(from, to) {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) InsertSlots(_ context.Context, slots []domain.Slot) ([]domain.Slot, error) {
+	if !f.inTx {
+		return nil, errors.New("insert outside tx")
+	}
+	if f.slots == nil {
+		f.slots = map[int64]domain.Slot{}
+	}
+	out := []domain.Slot{}
+	for _, s := range slots {
+		f.nextSlot++
+		s.ID = f.nextSlot
+		f.slots[s.ID] = s
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) GetSlotsForUpdate(_ context.Context, ids []int64) ([]domain.Slot, error) {
+	if !f.inTx {
+		return nil, errors.New("lock outside tx")
+	}
+	out := []domain.Slot{}
+	for _, id := range ids {
+		if s, ok := f.slots[id]; ok {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) UpdateSlot(_ context.Context, slot domain.Slot) error {
+	if _, ok := f.slots[slot.ID]; !ok {
+		return pkgerrors.ErrNotFound
+	}
+	f.slots[slot.ID] = slot
+	return nil
 }
 
 func (f *fakeAppointmentRepo) ListSlots(_ context.Context, _ int64, status domain.SlotStatus, from, to time.Time) ([]domain.Slot, error) {

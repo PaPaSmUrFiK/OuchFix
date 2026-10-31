@@ -31,10 +31,10 @@ func NewStub() *Stub {
 			3: {ID: 3, FullName: "Сидоров Олег Викторович", SpecialtyID: 3, Active: true},
 		},
 		services: map[int64]ServiceReply{
-			1: {ID: 1, Name: "Первичная консультация терапевта", Price: 35, DurationMin: 20},
-			2: {ID: 2, Name: "Консультация кардиолога", Price: 55, DurationMin: 30},
-			3: {ID: 3, Name: "ЭКГ", Price: 25.5, DurationMin: 15},
-			4: {ID: 4, Name: "Консультация невролога", Price: 50},
+			1: {ID: 1, Name: "Первичная консультация терапевта", PriceKopecks: 3500, DurationMin: 20},
+			2: {ID: 2, Name: "Консультация кардиолога", PriceKopecks: 5500, DurationMin: 30},
+			3: {ID: 3, Name: "ЭКГ", PriceKopecks: 2550, DurationMin: 15},
+			4: {ID: 4, Name: "Консультация невролога", PriceKopecks: 5000},
 		},
 		medications: map[int64]MedicationReply{
 			1: {ID: 1, Name: "Парацетамол 500 мг", Unit: "шт", StockQty: 200},

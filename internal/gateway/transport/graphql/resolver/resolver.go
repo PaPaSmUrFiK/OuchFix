@@ -5,12 +5,13 @@ import (
 	"net/url"
 )
 
-// Service — HTTP-прокси к внутреннему REST API одного сервиса: GET по пути
-// относительно базового адреса. Сервисы отвечают JSON в форме GraphQL-моделей,
+// Service — HTTP-прокси к внутреннему REST API одного сервиса: GET (чтение) и
+// POST (бизнес-операции) по пути относительно базового адреса. Сервисы отвечают JSON в форме GraphQL-моделей,
 // поэтому ответ декодируется сразу в model.* без преобразований, а ошибки
 // сервиса (NOT_FOUND, BAD_USER_INPUT, ...) проходят как есть.
 type Service interface {
 	Get(ctx context.Context, path string, query url.Values, out any) error
+	Post(ctx context.Context, path string, body any, out any) error
 }
 
 // Services — прокси ко всем сервисам. IAM пока не используется: me, login и

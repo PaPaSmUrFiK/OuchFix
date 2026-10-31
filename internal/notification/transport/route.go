@@ -25,5 +25,20 @@ func New(svc *service.NotificationService, loc *time.Location) func(fiber.Router
 			items, err := svc.ListUserNotifications(c.Context(), userID, status)
 			return httpserver.Reply(c, httpserver.MapList(items, toNotification(loc)), err)
 		})
+		router.Post("/users/:userId/notifications/:id/read", func(c fiber.Ctx) error {
+			userID, err := httpserver.ParamID(c, "userId")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			n, err := svc.MarkRead(c.Context(), userID, id)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return httpserver.Reply(c, toNotification(loc)(n), nil)
+		})
 	}
 }

@@ -25,10 +25,10 @@ type patientResponse struct {
 }
 
 type medicalServiceResponse struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	DurationMin *int32  `json:"durationMin"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	PriceKopecks int64  `json:"priceKopecks"`
+	DurationMin  *int32 `json:"durationMin"`
 }
 
 type medicationResponse struct {
@@ -58,10 +58,10 @@ func toPatient(p *domain.Patient) patientResponse {
 
 func toMedicalService(s *domain.MedicalService) medicalServiceResponse {
 	return medicalServiceResponse{
-		ID:          httpserver.FormatID(s.ID),
-		Name:        s.Name,
-		Price:       s.Price,
-		DurationMin: s.DurationMin,
+		ID:           httpserver.FormatID(s.ID),
+		Name:         s.Name,
+		PriceKopecks: s.PriceKopecks,
+		DurationMin:  s.DurationMin,
 	}
 }
 

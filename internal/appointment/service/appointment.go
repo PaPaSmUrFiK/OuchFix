@@ -18,23 +18,45 @@ type AppointmentRepository interface {
 	ListByPatient(ctx context.Context, patientID int64, status *domain.Status) ([]domain.Appointment, error)
 	ListDiagnoses(ctx context.Context, appointmentIDs []int64) ([]domain.Diagnosis, error)
 	ListPrescriptions(ctx context.Context, appointmentIDs []int64) ([]domain.Prescription, error)
+
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+	LockDoctorSchedule(ctx context.Context, doctorID int64) error
+	ListActiveSlots(ctx context.Context, doctorID int64, from, to time.Time) ([]domain.Slot, error)
+	InsertSlots(ctx context.Context, slots []domain.Slot) ([]domain.Slot, error)
+	GetSlotsForUpdate(ctx context.Context, ids []int64) ([]domain.Slot, error)
+	UpdateSlot(ctx context.Context, slot domain.Slot) error
+
+	GetAppointmentForUpdate(ctx context.Context, id int64) (*domain.Appointment, error)
+	HasQueued(ctx context.Context, patientID, doctorID int64) (bool, error)
+	InsertAppointment(ctx context.Context, a domain.Appointment) (*domain.Appointment, error)
+	UpdateAppointment(ctx context.Context, a domain.Appointment) error
+	InsertDiagnosis(ctx context.Context, d domain.Diagnosis) (*domain.Diagnosis, error)
+	InsertPrescription(ctx context.Context, p domain.Prescription) (*domain.Prescription, error)
+
+	ListAppointments(ctx context.Context, f domain.AppointmentFilter) ([]domain.Appointment, error)
+	DoctorLoad(ctx context.Context, from, to time.Time) ([]domain.DoctorLoad, error)
+	PopularServices(ctx context.Context, from, to time.Time, limit int) ([]domain.ServiceStat, error)
 }
 
 // CatalogClient — то, что Appointment спрашивает у Catalog (CatalogGrpc).
 type CatalogClient interface {
 	GetDoctor(ctx context.Context, doctorID int64) (*catalog.DoctorReply, error)
+	GetPatient(ctx context.Context, patientID int64) (*catalog.PatientReply, error)
+	GetMedicalService(ctx context.Context, serviceID int64) (*catalog.ServiceReply, error)
+	GetMedication(ctx context.Context, medicationID int64) (*catalog.MedicationReply, error)
 }
 
 type AppointmentService struct {
 	repo     AppointmentRepository
 	catalog  CatalogClient
 	location *time.Location
+	now      func() time.Time
 }
 
 // NewAppointmentService: location — часовой пояс медцентра, в нём считаются
 // границы календарного дня для freeSlots.
 func NewAppointmentService(repo AppointmentRepository, catalog CatalogClient, location *time.Location) *AppointmentService {
-	return &AppointmentService{repo: repo, catalog: catalog, location: location}
+	return &AppointmentService{repo: repo, catalog: catalog, location: location, now: time.Now}
 }
 
 // FreeSlots возвращает свободные слоты врача на дату вида 2006-01-02.
