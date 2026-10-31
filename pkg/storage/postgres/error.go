@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -39,4 +40,16 @@ func WrapDB(err error) error {
 	}
 
 	return err
+}
+
+// RequireAffected — UPDATE не задел ни одной строки: объекта нет.
+func RequireAffected(res sql.Result, what string) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: rows affected: %w", what, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%s: %w", what, pkgerrors.ErrNotFound)
+	}
+	return nil
 }

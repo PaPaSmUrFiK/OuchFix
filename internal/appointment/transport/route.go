@@ -44,5 +44,42 @@ func New(svc *service.AppointmentService, loc *time.Location) func(fiber.Router)
 			items, err := svc.ListPatientAppointments(c.Context(), patientID, status)
 			return httpserver.Reply(c, httpserver.MapList(items, toAppointment(loc)), err)
 		})
+
+		router.Post("/slots", func(c fiber.Ctx) error {
+			var req createSlotsRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in, err := req.toInput()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			slots, err := svc.CreateSlots(c.Context(), in)
+			return httpserver.Reply(c, httpserver.MapList(slots, toSlot(loc)), err)
+		})
+		router.Post("/slots/update", func(c fiber.Ctx) error {
+			var req updateSlotsRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in, err := req.toInput()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			slots, err := svc.UpdateSlots(c.Context(), in)
+			return httpserver.Reply(c, httpserver.MapList(slots, toSlot(loc)), err)
+		})
+		router.Post("/slots/cancel", func(c fiber.Ctx) error {
+			var req cancelSlotsRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			ids, err := httpserver.ParseIDs("slotIds", req.SlotIDs)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			slots, err := svc.CancelSlots(c.Context(), ids)
+			return httpserver.Reply(c, httpserver.MapList(slots, toSlot(loc)), err)
+		})
 	}
 }

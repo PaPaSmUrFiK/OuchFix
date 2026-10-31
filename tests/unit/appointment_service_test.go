@@ -21,6 +21,71 @@ type fakeAppointmentRepo struct {
 	slotStatus       domain.SlotStatus
 	slotCalls        int
 	lastStatus       *domain.Status
+
+	slots    map[int64]domain.Slot
+	nextSlot int64
+	inTx     bool
+	locked   []int64
+}
+
+// InTx в fake — без отката: тесты проверяют, что при ошибке запись не делалась.
+func (f *fakeAppointmentRepo) InTx(ctx context.Context, fn func(context.Context) error) error {
+	f.inTx = true
+	defer func() { f.inTx = false }()
+	return fn(ctx)
+}
+
+func (f *fakeAppointmentRepo) LockDoctorSchedule(_ context.Context, doctorID int64) error {
+	f.locked = append(f.locked, doctorID)
+	return nil
+}
+
+func (f *fakeAppointmentRepo) ListActiveSlots(_ context.Context, doctorID int64, from, to time.Time) ([]domain.Slot, error) {
+	out := []domain.Slot{}
+	for _, s := range f.slots {
+		if s.DoctorID == doctorID && s.Status != domain.SlotCancelled && s.Overlaps(from, to) {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) InsertSlots(_ context.Context, slots []domain.Slot) ([]domain.Slot, error) {
+	if !f.inTx {
+		return nil, errors.New("insert outside tx")
+	}
+	if f.slots == nil {
+		f.slots = map[int64]domain.Slot{}
+	}
+	out := []domain.Slot{}
+	for _, s := range slots {
+		f.nextSlot++
+		s.ID = f.nextSlot
+		f.slots[s.ID] = s
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) GetSlotsForUpdate(_ context.Context, ids []int64) ([]domain.Slot, error) {
+	if !f.inTx {
+		return nil, errors.New("lock outside tx")
+	}
+	out := []domain.Slot{}
+	for _, id := range ids {
+		if s, ok := f.slots[id]; ok {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeAppointmentRepo) UpdateSlot(_ context.Context, slot domain.Slot) error {
+	if _, ok := f.slots[slot.ID]; !ok {
+		return pkgerrors.ErrNotFound
+	}
+	f.slots[slot.ID] = slot
+	return nil
 }
 
 func (f *fakeAppointmentRepo) ListSlots(_ context.Context, _ int64, status domain.SlotStatus, from, to time.Time) ([]domain.Slot, error) {

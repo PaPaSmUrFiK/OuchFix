@@ -74,6 +74,39 @@ func BindJSON(c fiber.Ctx, out any) error {
 	return nil
 }
 
+// ParseID разбирает числовой id из тела запроса (в JSON id — строки, как в GraphQL).
+func ParseID(name, raw string) (int64, error) {
+	return parseID(name, raw)
+}
+
+// ParseIDs разбирает список id; пустой список — ошибка аргумента.
+func ParseIDs(name string, raw []string) ([]int64, error) {
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("%w: %s не должен быть пустым", pkgerrors.ErrInvalidArgument, name)
+	}
+	ids := make([]int64, 0, len(raw))
+	for _, r := range raw {
+		id, err := parseID(name, r)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// ParseOptionalID разбирает необязательный id; nil — значение не задано.
+func ParseOptionalID(name string, raw *string) (*int64, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	id, err := parseID(name, *raw)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
 func parseID(name, raw string) (int64, error) {
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {

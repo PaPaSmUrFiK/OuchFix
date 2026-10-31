@@ -73,3 +73,14 @@ type Prescription struct {
 	MedicationID  *int64
 	CreatedAt     time.Time
 }
+
+// SlotDuration — длительность слота расписания: интервал врача режется на такие слоты.
+const SlotDuration = 30 * time.Minute
+
+// MaxSlotsPeriod — наибольший интервал, который можно нарезать одной операцией (смена врача).
+const MaxSlotsPeriod = 12 * time.Hour
+
+// Overlaps — пересекаются ли интервалы [s.StartsAt, s.EndsAt) и [from, to).
+func (s Slot) Overlaps(from, to time.Time) bool {
+	return s.StartsAt.Before(to) && s.EndsAt.After(from)
+}

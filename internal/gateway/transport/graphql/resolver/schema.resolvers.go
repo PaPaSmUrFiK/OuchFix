@@ -31,17 +31,20 @@ func (r *mutationResolver) CreateDoctorAccount(ctx context.Context, email string
 
 // CreateSlots is the resolver for the createSlots field.
 func (r *mutationResolver) CreateSlots(ctx context.Context, input model.CreateSlotsInput) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("createSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots", input, &out)
 }
 
 // UpdateSlots is the resolver for the updateSlots field.
 func (r *mutationResolver) UpdateSlots(ctx context.Context, input model.UpdateSlotsInput) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("updateSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots/update", input, &out)
 }
 
 // CancelSlots is the resolver for the cancelSlots field.
 func (r *mutationResolver) CancelSlots(ctx context.Context, slotIds []string) ([]*model.ScheduleSlot, error) {
-	return nil, notImplemented("cancelSlots", "ЛР4")
+	var out []*model.ScheduleSlot
+	return out, r.services.Appointment.Post(ctx, "/slots/cancel", map[string][]string{"slotIds": slotIds}, &out)
 }
 
 // BookAppointment is the resolver for the bookAppointment field.
