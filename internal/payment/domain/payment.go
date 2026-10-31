@@ -29,3 +29,13 @@ type Payment struct {
 	CreatedAt     time.Time
 	PaidAt        *time.Time
 }
+
+func (m Method) Valid() bool {
+	return m == MethodCash || m == MethodCard || m == MethodOnline
+}
+
+// Summary — выручка за период: число и сумма оплаченных платежей.
+type Summary struct {
+	Count int
+	Total float64
+}

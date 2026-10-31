@@ -131,7 +131,11 @@ func (r *mutationResolver) DispenseMedication(ctx context.Context, input model.D
 
 // CreatePayment is the resolver for the createPayment field.
 func (r *mutationResolver) CreatePayment(ctx context.Context, input model.CreatePaymentInput) (*model.Payment, error) {
-	return nil, notImplemented("createPayment", "ЛР4")
+	var out model.Payment
+	if err := r.services.Payment.Post(ctx, "/payments", input, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // MarkNotificationRead is the resolver for the markNotificationRead field.
@@ -226,6 +230,15 @@ func (r *queryResolver) Payments(ctx context.Context, patientID *string) ([]*mod
 	}
 	var out []*model.Payment
 	return out, r.services.Payment.Get(ctx, "/payments", query, &out)
+}
+
+// PaymentSummary is the resolver for the paymentSummary field.
+func (r *queryResolver) PaymentSummary(ctx context.Context, from string, to string) (*model.PaymentSummary, error) {
+	var out model.PaymentSummary
+	if err := r.services.Payment.Get(ctx, "/payments/summary", url.Values{"from": {from}, "to": {to}}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // MyNotifications is the resolver for the myNotifications field.

@@ -280,3 +280,25 @@ func TestGraphQLMedicationMutationsProxy(t *testing.T) {
 		t.Fatalf("calls = %q", f.catalog.calls)
 	}
 }
+
+func TestGraphQLPaymentProxy(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.payment.errs = nil
+	f.payment.responses = map[string]string{}
+	f.payment.responses["/payments"] = `{"id":"4","appointmentId":"1","patientId":"1","serviceId":"1","amount":35,"method":"CARD","status":"PAID","paidAt":null}`
+	f.payment.responses["/payments/summary"] = `{"count":2,"total":70}`
+	q := `mutation { createPayment(input: {appointmentId: "1", patientId: "1", amount: 35, method: CARD}) { id status } }`
+	if resp := doGraphQL(t, h, q); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	if resp := doGraphQL(t, h, `{ paymentSummary(from: "2026-11-01", to: "2026-11-30") { count total } }`); len(resp.Errors) != 0 {
+		t.Fatalf("errors: %+v", resp.Errors)
+	}
+	want := []string{
+		`POST /payments {"appointmentId":"1","patientId":"1","amount":35,"method":"CARD"}`,
+		`/payments/summary?from=2026-11-01&to=2026-11-30`,
+	}
+	if len(f.payment.calls) != 2 || f.payment.calls[0] != want[0] || f.payment.calls[1] != want[1] {
+		t.Fatalf("calls = %q", f.payment.calls)
+	}
+}

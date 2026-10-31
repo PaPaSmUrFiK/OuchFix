@@ -146,6 +146,11 @@ type Payment struct {
 	PaidAt        *string       `json:"paidAt,omitempty"`
 }
 
+type PaymentSummary struct {
+	Count int32   `json:"count"`
+	Total float64 `json:"total"`
+}
+
 type Prescription struct {
 	ID           string  `json:"id"`
 	Text         string  `json:"text"`

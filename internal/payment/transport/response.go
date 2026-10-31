@@ -33,3 +33,8 @@ func toPayment(loc *time.Location) func(*domain.Payment) paymentResponse {
 		}
 	}
 }
+
+type summaryResponse struct {
+	Count int     `json:"count"`
+	Total float64 `json:"total"`
+}

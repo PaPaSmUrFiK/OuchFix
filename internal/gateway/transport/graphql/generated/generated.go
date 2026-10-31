@@ -138,6 +138,11 @@ type ComplexityRoot struct {
 		Status        func(childComplexity int) int
 	}
 
+	PaymentSummary struct {
+		Count func(childComplexity int) int
+		Total func(childComplexity int) int
+	}
+
 	Prescription struct {
 		ID           func(childComplexity int) int
 		MedicationID func(childComplexity int) int
@@ -155,6 +160,7 @@ type ComplexityRoot struct {
 		Medications     func(childComplexity int) int
 		MyAppointments  func(childComplexity int, status *model.AppointmentStatus) int
 		MyNotifications func(childComplexity int, status *model.NotificationStatus) int
+		PaymentSummary  func(childComplexity int, from string, to string) int
 		Payments        func(childComplexity int, patientID *string) int
 		PopularServices func(childComplexity int, from string, to string, limit *int32) int
 		Specialties     func(childComplexity int) int
@@ -227,6 +233,7 @@ type QueryResolver interface {
 	Appointment(ctx context.Context, id string) (*model.Appointment, error)
 	MyAppointments(ctx context.Context, status *model.AppointmentStatus) ([]*model.Appointment, error)
 	Payments(ctx context.Context, patientID *string) ([]*model.Payment, error)
+	PaymentSummary(ctx context.Context, from string, to string) (*model.PaymentSummary, error)
 	MyNotifications(ctx context.Context, status *model.NotificationStatus) ([]*model.Notification, error)
 	Appointments(ctx context.Context, doctorID *string, date *string, status *model.AppointmentStatus, sort *model.AppointmentSort) ([]*model.Appointment, error)
 	DoctorLoad(ctx context.Context, from string, to string) ([]*model.DoctorLoad, error)
@@ -767,6 +774,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Payment.Status(childComplexity), true
 
+	case "PaymentSummary.count":
+		if e.ComplexityRoot.PaymentSummary.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PaymentSummary.Count(childComplexity), true
+	case "PaymentSummary.total":
+		if e.ComplexityRoot.PaymentSummary.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PaymentSummary.Total(childComplexity), true
+
 	case "Prescription.id":
 		if e.ComplexityRoot.Prescription.ID == nil {
 			break
@@ -882,6 +902,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyNotifications(childComplexity, args["status"].(*model.NotificationStatus)), true
+	case "Query.paymentSummary":
+		if e.ComplexityRoot.Query.PaymentSummary == nil {
+			break
+		}
+
+		args, err := ec.field_Query_paymentSummary_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PaymentSummary(childComplexity, args["from"].(string), args["to"].(string)), true
 	case "Query.payments":
 		if e.ComplexityRoot.Query.Payments == nil {
 			break
@@ -1227,6 +1258,11 @@ type Payment {
   paidAt: String
 }
 
+type PaymentSummary {
+  count: Int!
+  total: Float!
+}
+
 type Notification {
   id: ID!
   title: String!
@@ -1342,6 +1378,7 @@ type Query {
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
   payments(patientId: ID): [Payment!]!
+  paymentSummary(from: String!, to: String!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
   appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
   doctorLoad(from: String!, to: String!): [DoctorLoad!]!
@@ -1521,6 +1558,16 @@ func (ec *executionContext) childFields_Payment(ctx context.Context, field graph
 		return ec.fieldContext_Payment_paidAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+}
+
+func (ec *executionContext) childFields_PaymentSummary(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "count":
+		return ec.fieldContext_PaymentSummary_count(ctx, field)
+	case "total":
+		return ec.fieldContext_PaymentSummary_total(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PaymentSummary", field.Name)
 }
 
 func (ec *executionContext) childFields_Prescription(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2160,6 +2207,28 @@ func (ec *executionContext) field_Query_myNotifications_args(ctx context.Context
 		return nil, err
 	}
 	args["status"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_paymentSummary_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "from",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["from"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "to",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["to"] = arg1
 	return args, nil
 }
 
@@ -4284,6 +4353,52 @@ func (ec *executionContext) fieldContext_Payment_paidAt(_ context.Context, field
 	return graphql.NewScalarFieldContext("Payment", field, false, false, "String")
 }
 
+func (ec *executionContext) _PaymentSummary_count(ctx context.Context, field graphql.CollectedField, obj *model.PaymentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PaymentSummary_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int32) graphql.Marshaler {
+			return ec.marshalNInt2int32(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PaymentSummary_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PaymentSummary", field, false, false, "Int")
+}
+
+func (ec *executionContext) _PaymentSummary_total(ctx context.Context, field graphql.CollectedField, obj *model.PaymentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PaymentSummary_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PaymentSummary_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PaymentSummary", field, false, false, "Float")
+}
+
 func (ec *executionContext) _Prescription_id(ctx context.Context, field graphql.CollectedField, obj *model.Prescription) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4695,6 +4810,50 @@ func (ec *executionContext) fieldContext_Query_payments(ctx context.Context, fie
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_payments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_paymentSummary(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_paymentSummary(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().PaymentSummary(ctx, fc.Args["from"].(string), fc.Args["to"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.PaymentSummary) graphql.Marshaler {
+			return ec.marshalNPaymentSummary2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentSummary(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_paymentSummary(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_PaymentSummary(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_paymentSummary_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7871,6 +8030,44 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
+var paymentSummaryImplementors = []string{"PaymentSummary"}
+
+func (ec *executionContext) _PaymentSummary(ctx context.Context, sel ast.SelectionSet, obj *model.PaymentSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paymentSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaymentSummary")
+		case "count":
+			out.Values[i] = ec._PaymentSummary_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._PaymentSummary_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var prescriptionImplementors = []string{"Prescription"}
 
 func (ec *executionContext) _Prescription(ctx context.Context, sel ast.SelectionSet, obj *model.Prescription) graphql.Marshaler {
@@ -7986,6 +8183,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_payments(ctx, field)
+				})
+		case "paymentSummary":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_paymentSummary(ctx, field)
 				})
 		case "myNotifications":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
@@ -8997,6 +9200,14 @@ func (ec *executionContext) unmarshalNPaymentStatus2githubᚗcomᚋPaPaSmUrFiK�
 
 func (ec *executionContext) marshalNPaymentStatus2githubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentStatus(ctx context.Context, sel ast.SelectionSet, v model.PaymentStatus) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNPaymentSummary2ᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPaymentSummary(ctx context.Context, sel ast.SelectionSet, v *model.PaymentSummary) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "PaymentSummary!")
+		return graphql.Null
+	}
+	return ec._PaymentSummary(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNPrescription2ᚕᚖgithubᚗcomᚋPaPaSmUrFiKᚋOuchFixᚋinternalᚋgatewayᚋtransportᚋgraphqlᚋmodelᚐPrescriptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Prescription) graphql.Marshaler {

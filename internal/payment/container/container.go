@@ -33,7 +33,7 @@ type Services struct {
 // Межсервисные клиенты в ЛР3 — заглушки по proto из ЛР2, в ЛР6 — gRPC.
 func (c *Container) NewServices() *Services {
 	return &Services{
-		payment: paymentsvc.NewPaymentService(c.repos.payment, catalogclient.NewStub(), appointmentclient.NewStub()),
+		payment: paymentsvc.NewPaymentService(c.repos.payment, catalogclient.NewStub(), appointmentclient.NewStub(), c.Config.Location),
 	}
 }
 

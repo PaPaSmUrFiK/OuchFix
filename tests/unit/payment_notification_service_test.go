@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	notificationdomain "github.com/PaPaSmUrFiK/OuchFix/internal/notification/domain"
 	notificationsvc "github.com/PaPaSmUrFiK/OuchFix/internal/notification/service"
@@ -18,6 +19,25 @@ import (
 type fakePaymentRepo struct {
 	calls       int
 	lastPatient *int64
+
+	paid           map[int64]bool
+	inserted       []paymentdomain.Payment
+	sumFrom, sumTo time.Time
+}
+
+func (f *fakePaymentRepo) HasPaid(_ context.Context, appointmentID int64) (bool, error) {
+	return f.paid[appointmentID], nil
+}
+
+func (f *fakePaymentRepo) Insert(_ context.Context, p paymentdomain.Payment) (*paymentdomain.Payment, error) {
+	p.ID = int64(len(f.inserted) + 10)
+	f.inserted = append(f.inserted, p)
+	return &p, nil
+}
+
+func (f *fakePaymentRepo) Summary(_ context.Context, from, to time.Time) (*paymentdomain.Summary, error) {
+	f.sumFrom, f.sumTo = from, to
+	return &paymentdomain.Summary{Count: 1, Total: 35}, nil
 }
 
 func (f *fakePaymentRepo) List(_ context.Context, patientID *int64) ([]paymentdomain.Payment, error) {
@@ -28,7 +48,7 @@ func (f *fakePaymentRepo) List(_ context.Context, patientID *int64) ([]paymentdo
 
 func TestPaymentsFilterAndValidation(t *testing.T) {
 	repo := &fakePaymentRepo{}
-	svc := paymentsvc.NewPaymentService(repo, catalog.NewStub(), appointment.NewStub())
+	svc := paymentsvc.NewPaymentService(repo, catalog.NewStub(), appointment.NewStub(), time.UTC)
 
 	if _, err := svc.ListPayments(context.Background(), nil); err != nil || repo.lastPatient != nil {
 		t.Fatalf("nil patient must list all: err %v", err)

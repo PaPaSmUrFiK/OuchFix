@@ -104,6 +104,11 @@ type Payment {
   paidAt: String
 }
 
+type PaymentSummary {
+  count: Int!
+  total: Float!
+}
+
 type Notification {
   id: ID!
   title: String!
@@ -219,6 +224,7 @@ type Query {
   appointment(id: ID!): Appointment
   myAppointments(status: AppointmentStatus): [Appointment!]!
   payments(patientId: ID): [Payment!]!
+  paymentSummary(from: String!, to: String!): PaymentSummary!
   myNotifications(status: NotificationStatus): [Notification!]!
   appointments(doctorId: ID, date: String, status: AppointmentStatus, sort: AppointmentSort = SCHEDULED_AT_ASC): [Appointment!]!
   doctorLoad(from: String!, to: String!): [DoctorLoad!]!
