@@ -81,5 +81,76 @@ func New(svc *service.AppointmentService, loc *time.Location) func(fiber.Router)
 			slots, err := svc.CancelSlots(c.Context(), ids)
 			return httpserver.Reply(c, httpserver.MapList(slots, toSlot(loc)), err)
 		})
+
+		router.Post("/appointments", func(c fiber.Ctx) error {
+			var req bookRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in, err := req.toInput()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return replyAppointment(c, loc)(svc.Book(c.Context(), in))
+		})
+		router.Post("/appointments/walk-in", func(c fiber.Ctx) error {
+			var req walkInRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in, err := req.toInput()
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return replyAppointment(c, loc)(svc.WalkIn(c.Context(), in))
+		})
+		router.Post("/appointments/:id/cancel", func(c fiber.Ctx) error {
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return replyAppointment(c, loc)(svc.Cancel(c.Context(), id))
+		})
+		router.Post("/appointments/:id/reschedule", func(c fiber.Ctx) error {
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			var req rescheduleRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			slotID, err := httpserver.ParseID("newSlotId", req.NewSlotID)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			return replyAppointment(c, loc)(svc.Reschedule(c.Context(), id, slotID))
+		})
+		router.Post("/appointments/:id/complete", func(c fiber.Ctx) error {
+			id, err := httpserver.ParamID(c, "id")
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			var req completeRequest
+			if err := httpserver.BindJSON(c, &req); err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			serviceID, err := httpserver.ParseOptionalID("serviceId", req.ServiceID)
+			if err != nil {
+				return httpserver.WriteError(c, err)
+			}
+			in := service.CompleteInput{AppointmentID: id, ServiceID: serviceID, Conclusion: req.Conclusion}
+			return replyAppointment(c, loc)(svc.Complete(c.Context(), in))
+		})
+	}
+}
+
+// replyAppointment отдаёт приём, возвращённый бизнес-операцией, или её ошибку.
+func replyAppointment(c fiber.Ctx, loc *time.Location) func(*domain.Appointment, error) error {
+	return func(a *domain.Appointment, err error) error {
+		if err != nil {
+			return httpserver.WriteError(c, err)
+		}
+		return httpserver.Reply(c, toAppointment(loc)(a), nil)
 	}
 }

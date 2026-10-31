@@ -84,3 +84,8 @@ const MaxSlotsPeriod = 12 * time.Hour
 func (s Slot) Overlaps(from, to time.Time) bool {
 	return s.StartsAt.Before(to) && s.EndsAt.After(from)
 }
+
+// Active — приём ещё не завершён и не отменён: его можно отменить или провести.
+func (a Appointment) Active() bool {
+	return a.Status == StatusScheduled || a.Status == StatusQueue
+}

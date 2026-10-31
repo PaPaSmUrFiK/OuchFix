@@ -28,6 +28,46 @@ type fakeAppointmentRepo struct {
 	locked   []int64
 }
 
+func (f *fakeAppointmentRepo) GetAppointmentForUpdate(_ context.Context, id int64) (*domain.Appointment, error) {
+	if !f.inTx {
+		return nil, errors.New("lock outside tx")
+	}
+	a, ok := f.appointments[id]
+	if !ok {
+		return nil, pkgerrors.ErrNotFound
+	}
+	return &a, nil
+}
+
+func (f *fakeAppointmentRepo) HasQueued(_ context.Context, patientID, doctorID int64) (bool, error) {
+	for _, a := range f.appointments {
+		if a.PatientID == patientID && a.DoctorID == doctorID && a.Status == domain.StatusQueue {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (f *fakeAppointmentRepo) InsertAppointment(_ context.Context, a domain.Appointment) (*domain.Appointment, error) {
+	if !f.inTx {
+		return nil, errors.New("insert outside tx")
+	}
+	if f.appointments == nil {
+		f.appointments = map[int64]domain.Appointment{}
+	}
+	a.ID = int64(len(f.appointments) + 100)
+	f.appointments[a.ID] = a
+	return &a, nil
+}
+
+func (f *fakeAppointmentRepo) UpdateAppointment(_ context.Context, a domain.Appointment) error {
+	if _, ok := f.appointments[a.ID]; !ok {
+		return pkgerrors.ErrNotFound
+	}
+	f.appointments[a.ID] = a
+	return nil
+}
+
 // InTx в fake — без отката: тесты проверяют, что при ошибке запись не делалась.
 func (f *fakeAppointmentRepo) InTx(ctx context.Context, fn func(context.Context) error) error {
 	f.inTx = true

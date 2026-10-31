@@ -38,3 +38,54 @@ func (r updateSlotsRequest) toInput() (service.UpdateSlotsInput, error) {
 type cancelSlotsRequest struct {
 	SlotIDs []string `json:"slotIds"`
 }
+
+type bookRequest struct {
+	PatientID string  `json:"patientId"`
+	DoctorID  string  `json:"doctorId"`
+	SlotID    string  `json:"slotId"`
+	ServiceID *string `json:"serviceId"`
+}
+
+func (r bookRequest) toInput() (service.BookInput, error) {
+	var in service.BookInput
+	var err error
+	if in.PatientID, err = httpserver.ParseID("patientId", r.PatientID); err != nil {
+		return in, err
+	}
+	if in.DoctorID, err = httpserver.ParseID("doctorId", r.DoctorID); err != nil {
+		return in, err
+	}
+	if in.SlotID, err = httpserver.ParseID("slotId", r.SlotID); err != nil {
+		return in, err
+	}
+	in.ServiceID, err = httpserver.ParseOptionalID("serviceId", r.ServiceID)
+	return in, err
+}
+
+type walkInRequest struct {
+	PatientID string  `json:"patientId"`
+	DoctorID  string  `json:"doctorId"`
+	ServiceID *string `json:"serviceId"`
+}
+
+func (r walkInRequest) toInput() (service.WalkInInput, error) {
+	var in service.WalkInInput
+	var err error
+	if in.PatientID, err = httpserver.ParseID("patientId", r.PatientID); err != nil {
+		return in, err
+	}
+	if in.DoctorID, err = httpserver.ParseID("doctorId", r.DoctorID); err != nil {
+		return in, err
+	}
+	in.ServiceID, err = httpserver.ParseOptionalID("serviceId", r.ServiceID)
+	return in, err
+}
+
+type rescheduleRequest struct {
+	NewSlotID string `json:"newSlotId"`
+}
+
+type completeRequest struct {
+	ServiceID  *string `json:"serviceId"`
+	Conclusion *string `json:"conclusion"`
+}

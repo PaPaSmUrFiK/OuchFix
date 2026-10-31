@@ -49,27 +49,39 @@ func (r *mutationResolver) CancelSlots(ctx context.Context, slotIds []string) ([
 
 // BookAppointment is the resolver for the bookAppointment field.
 func (r *mutationResolver) BookAppointment(ctx context.Context, input model.BookAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("bookAppointment", "ЛР4")
+	return postAppointment(ctx, r.services.Appointment, "/appointments", input)
 }
 
 // CreateWalkInAppointment is the resolver for the createWalkInAppointment field.
 func (r *mutationResolver) CreateWalkInAppointment(ctx context.Context, input model.WalkInAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("createWalkInAppointment", "ЛР4")
+	return postAppointment(ctx, r.services.Appointment, "/appointments/walk-in", input)
 }
 
 // CancelAppointment is the resolver for the cancelAppointment field.
 func (r *mutationResolver) CancelAppointment(ctx context.Context, id string) (*model.Appointment, error) {
-	return nil, notImplemented("cancelAppointment", "ЛР4")
+	appointmentID, err := parseID("id", id)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/cancel", struct{}{})
 }
 
 // RescheduleAppointment is the resolver for the rescheduleAppointment field.
 func (r *mutationResolver) RescheduleAppointment(ctx context.Context, input model.RescheduleAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("rescheduleAppointment", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/reschedule", input)
 }
 
 // CompleteAppointment is the resolver for the completeAppointment field.
 func (r *mutationResolver) CompleteAppointment(ctx context.Context, input model.CompleteAppointmentInput) (*model.Appointment, error) {
-	return nil, notImplemented("completeAppointment", "ЛР4")
+	appointmentID, err := parseID("appointmentId", input.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+	return postAppointment(ctx, r.services.Appointment, "/appointments/"+appointmentID+"/complete", input)
 }
 
 // AddDiagnosis is the resolver for the addDiagnosis field.

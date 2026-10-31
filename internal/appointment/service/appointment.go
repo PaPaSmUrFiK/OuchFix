@@ -25,11 +25,18 @@ type AppointmentRepository interface {
 	InsertSlots(ctx context.Context, slots []domain.Slot) ([]domain.Slot, error)
 	GetSlotsForUpdate(ctx context.Context, ids []int64) ([]domain.Slot, error)
 	UpdateSlot(ctx context.Context, slot domain.Slot) error
+
+	GetAppointmentForUpdate(ctx context.Context, id int64) (*domain.Appointment, error)
+	HasQueued(ctx context.Context, patientID, doctorID int64) (bool, error)
+	InsertAppointment(ctx context.Context, a domain.Appointment) (*domain.Appointment, error)
+	UpdateAppointment(ctx context.Context, a domain.Appointment) error
 }
 
 // CatalogClient — то, что Appointment спрашивает у Catalog (CatalogGrpc).
 type CatalogClient interface {
 	GetDoctor(ctx context.Context, doctorID int64) (*catalog.DoctorReply, error)
+	GetPatient(ctx context.Context, patientID int64) (*catalog.PatientReply, error)
+	GetMedicalService(ctx context.Context, serviceID int64) (*catalog.ServiceReply, error)
 }
 
 type AppointmentService struct {

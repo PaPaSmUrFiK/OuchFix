@@ -207,3 +207,33 @@ func TestGraphQLUnknownUserIsNotFound(t *testing.T) {
 		t.Fatalf("got %+v", resp.Errors)
 	}
 }
+
+// Mutation только пересылает input сервису и отдаёт его ответ; бизнес-ошибки
+// сервиса доходят до клиента со своими кодами.
+func TestGraphQLMutationsProxyInput(t *testing.T) {
+	h, f := newGatewayHandler(t, 5)
+	f.appointment.responses["/appointments"] = `{"id":"6","patientId":"1","doctorId":"1","slotId":"2","status":"SCHEDULED","visitType":"SCHEDULED","diagnoses":[],"prescriptions":[]}`
+	f.appointment.errs = map[string]error{
+		"/appointments/2/cancel": fmt.Errorf("%w: нельзя отменить приём в статусе completed", pkgerrors.ErrFailedPrecondition),
+		"/slots":                 fmt.Errorf("%w: время пересекается со слотом 3", pkgerrors.ErrConflict),
+	}
+
+	resp := doGraphQL(t, h, `mutation { bookAppointment(input: {patientId: "1", doctorId: "1", slotId: "2"}) { id status } }`)
+	if len(resp.Errors) != 0 || !strings.Contains(string(resp.Data["bookAppointment"]), `"status":"SCHEDULED"`) {
+		t.Fatalf("book: %+v %s", resp.Errors, resp.Data["bookAppointment"])
+	}
+	if got := f.appointment.calls[0]; got != `POST /appointments {"patientId":"1","doctorId":"1","slotId":"2"}` {
+		t.Fatalf("book call = %s", got)
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{`mutation { cancelAppointment(id: "2") { id } }`, "FAILED_PRECONDITION"},
+		{`mutation { createSlots(input: {doctorId: "1", startsAt: "a", endsAt: "b"}) { id } }`, "CONFLICT"},
+		{`mutation { cancelAppointment(id: "x") { id } }`, "BAD_USER_INPUT"},
+	} {
+		resp := doGraphQL(t, h, tc.query)
+		if len(resp.Errors) != 1 || resp.Errors[0].Extensions["code"] != tc.code {
+			t.Fatalf("%s: want %s, got %+v", tc.query, tc.code, resp.Errors)
+		}
+	}
+}
